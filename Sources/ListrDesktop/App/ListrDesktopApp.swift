@@ -2,7 +2,7 @@ import SwiftUI
 
 @main
 struct ListrDesktopApp: App {
-    @State private var libraryStore = LibraryStore.preview
+    @State private var libraryStore = LibraryStore()
     @State private var conversionStore = ConversionStore()
 
     var body: some Scene {

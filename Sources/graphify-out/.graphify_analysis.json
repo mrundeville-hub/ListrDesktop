@@ -6,12 +6,14 @@
       "data",
       "listrdesktop_services_bookimportservice_swift_url",
       "localizederror",
+      "sendable",
       "services_bookimportservice",
       "services_bookimportservice_bookimporterror",
       "services_bookimportservice_bookimporterror_emptybook",
       "services_bookimportservice_bookimporterror_invalidepub",
       "services_bookimportservice_bookimporterror_unreadablefile",
       "services_bookimportservice_bookimporterror_unsupportedformat",
+      "services_bookimportservice_bookimportservice",
       "services_bookimportservice_bookimportservice_importbook",
       "services_bookimportservice_chaptersplitter",
       "services_bookimportservice_epubbookparser",
@@ -29,38 +31,14 @@
       "xmlparser"
     ],
     "1": [
-      "date",
-      "hashable",
-      "listrdesktop_models_book_swift_chapter",
-      "listrdesktop_models_book_swift_double",
-      "listrdesktop_models_book_swift_int",
-      "listrdesktop_models_book_swift_uuid",
-      "listrdesktop_models_chapter_swift_int",
-      "listrdesktop_models_chapter_swift_uuid",
-      "models_book",
-      "models_book_book",
-      "models_book_status",
-      "models_book_status_converting",
-      "models_book_status_failed",
-      "models_book_status_imported",
-      "models_book_status_queued",
-      "models_book_status_ready",
-      "models_chapter",
-      "models_chapter_chapter",
-      "models_chapter_status",
-      "models_chapter_status_converting",
-      "models_chapter_status_failed",
-      "models_chapter_status_pending",
-      "models_chapter_status_ready",
-      "string",
-      "timeinterval"
-    ],
-    "2": [
       "chapter",
       "listrdesktop_views_detailview_swift_book",
       "listrdesktop_views_detailview_swift_chapter",
       "listrdesktop_views_detailview_swift_color",
       "listrdesktop_views_detailview_swift_string",
+      "listrdesktop_views_sidebarview_swift_book",
+      "listrdesktop_views_sidebarview_swift_color",
+      "listrdesktop_views_sidebarview_swift_string",
       "view",
       "views_contentview",
       "views_contentview_contentview",
@@ -76,9 +54,41 @@
       "views_detailview_queuepanel",
       "views_detailview_stat",
       "views_settingsview",
-      "views_settingsview_settingsview"
+      "views_settingsview_settingsview",
+      "views_sidebarview",
+      "views_sidebarview_bookrow",
+      "views_sidebarview_sidebarview"
+    ],
+    "2": [
+      "caseiterable",
+      "hashable",
+      "identifiable",
+      "listrdesktop_models_bookformat_swift_url",
+      "listrdesktop_models_chapter_swift_int",
+      "listrdesktop_models_chapter_swift_uuid",
+      "models_bookformat",
+      "models_bookformat_bookformat",
+      "models_bookformat_bookformat_detect",
+      "models_bookformat_bookformat_epub",
+      "models_bookformat_bookformat_fb2",
+      "models_bookformat_bookformat_plaintext",
+      "models_chapter",
+      "models_chapter_chapter",
+      "models_chapter_status",
+      "models_chapter_status_converting",
+      "models_chapter_status_failed",
+      "models_chapter_status_pending",
+      "models_chapter_status_ready",
+      "models_voiceengine",
+      "models_voiceengine_voiceengine",
+      "models_voiceengine_voiceengine_neurallocal",
+      "models_voiceengine_voiceengine_piper",
+      "models_voiceengine_voiceengine_system",
+      "string",
+      "uttype"
     ],
     "3": [
+      "bool",
       "listrdesktop_services_bookimportservice_swift_bool",
       "listrdesktop_services_bookimportservice_swift_chapter",
       "listrdesktop_services_bookimportservice_swift_string",
@@ -87,6 +97,7 @@
       "services_bookimportservice_epubcontainerparser",
       "services_bookimportservice_epubcontainerparser_parser",
       "services_bookimportservice_epubpackageparser",
+      "services_bookimportservice_epubpackageparser_elementnamematches",
       "services_bookimportservice_epubpackageparser_parser",
       "services_bookimportservice_fb2xmldelegate",
       "services_bookimportservice_fb2xmldelegate_appendchapter",
@@ -101,35 +112,48 @@
       "xmlparserdelegate"
     ],
     "4": [
-      "caseiterable",
-      "identifiable",
-      "listrdesktop_models_bookformat_swift_url",
-      "models_bookformat",
-      "models_bookformat_bookformat",
-      "models_bookformat_bookformat_detect",
-      "models_bookformat_bookformat_epub",
-      "models_bookformat_bookformat_fb2",
-      "models_bookformat_bookformat_plaintext",
-      "models_voiceengine",
-      "models_voiceengine_voiceengine",
-      "models_voiceengine_voiceengine_neurallocal",
-      "models_voiceengine_voiceengine_piper",
-      "models_voiceengine_voiceengine_system",
-      "uttype"
+      "date",
+      "double",
+      "listrdesktop_models_book_swift_chapter",
+      "listrdesktop_models_book_swift_double",
+      "listrdesktop_models_book_swift_int",
+      "listrdesktop_models_book_swift_uuid",
+      "models_book",
+      "models_book_book",
+      "models_book_status",
+      "models_book_status_converting",
+      "models_book_status_failed",
+      "models_book_status_imported",
+      "models_book_status_queued",
+      "models_book_status_ready",
+      "timeinterval"
     ],
     "5": [
+      "librarypersistenceservice",
       "listrdesktop_stores_librarystore_swift_book",
       "listrdesktop_stores_librarystore_swift_string",
       "listrdesktop_stores_librarystore_swift_url",
-      "sendable",
-      "services_bookimportservice_bookimportservice",
       "stores_librarystore",
       "stores_librarystore_librarystore",
       "stores_librarystore_librarystore_importbook",
       "stores_librarystore_librarystore_importplaceholderbook",
-      "stores_librarystore_librarystore_init"
+      "stores_librarystore_librarystore_init",
+      "stores_librarystore_librarystore_loadpersistedlibraryifneeded",
+      "stores_librarystore_librarystore_savelibrary"
     ],
     "6": [
+      "codable",
+      "listrdesktop_services_librarypersistenceservice_swift_book",
+      "listrdesktop_services_librarypersistenceservice_swift_url",
+      "services_librarypersistenceservice",
+      "services_librarypersistenceservice_jsondecoder",
+      "services_librarypersistenceservice_jsonencoder",
+      "services_librarypersistenceservice_librarypersistenceservice",
+      "services_librarypersistenceservice_librarypersistenceservice_load",
+      "services_librarypersistenceservice_librarypersistenceservice_save",
+      "services_librarypersistenceservice_persistedlibrary"
+    ],
+    "7": [
       "listrdesktop_services_ttsservice_swift_string",
       "listrdesktop_services_ttsservice_swift_url",
       "listrdesktop_services_ttsservice_swift_voiceengine",
@@ -138,7 +162,7 @@
       "services_ttsservice_plannedttsservice_synthesize",
       "services_ttsservice_ttsservice"
     ],
-    "7": [
+    "8": [
       "listrdesktop_stores_conversionstore_swift_bool",
       "listrdesktop_stores_conversionstore_swift_double",
       "listrdesktop_stores_conversionstore_swift_int",
@@ -146,14 +170,6 @@
       "listrdesktop_stores_conversionstore_swift_voiceengine",
       "stores_conversionstore",
       "stores_conversionstore_conversionstore"
-    ],
-    "8": [
-      "listrdesktop_views_sidebarview_swift_book",
-      "listrdesktop_views_sidebarview_swift_color",
-      "listrdesktop_views_sidebarview_swift_string",
-      "views_sidebarview",
-      "views_sidebarview_bookrow",
-      "views_sidebarview_sidebarview"
     ],
     "9": [
       "app",
@@ -172,15 +188,15 @@
     ]
   },
   "cohesion": {
-    "0": 0.15384615384615385,
-    "1": 0.10333333333333333,
-    "2": 0.1761904761904762,
-    "3": 0.22105263157894736,
+    "0": 0.14285714285714285,
+    "1": 0.1282051282051282,
+    "2": 0.09538461538461539,
+    "3": 0.2077922077922078,
     "4": 0.14285714285714285,
-    "5": 0.26666666666666666,
-    "6": 0.3333333333333333,
-    "7": 0.2857142857142857,
-    "8": 0.4,
+    "5": 0.2909090909090909,
+    "6": 0.24444444444444444,
+    "7": 0.3333333333333333,
+    "8": 0.2857142857142857,
     "9": 0.5,
     "10": 0.6666666666666666,
     "11": 1.0
@@ -189,26 +205,31 @@
     {
       "id": "listrdesktop_services_bookimportservice_swift_string",
       "label": "String",
-      "degree": 19
+      "degree": 20
     },
     {
       "id": "models_book_book",
       "label": "Book",
-      "degree": 12
+      "degree": 14
     },
     {
       "id": "services_bookimportservice_fb2xmldelegate",
       "label": "FB2XMLDelegate",
-      "degree": 11
+      "degree": 12
     },
     {
       "id": "models_book_status",
       "label": "Status",
-      "degree": 10
+      "degree": 11
     },
     {
       "id": "models_bookformat_bookformat",
       "label": "BookFormat",
+      "degree": 11
+    },
+    {
+      "id": "models_chapter_status",
+      "label": "Status",
       "degree": 10
     },
     {
@@ -217,37 +238,43 @@
       "degree": 10
     },
     {
-      "id": "models_chapter_status",
-      "label": "Status",
-      "degree": 9
-    },
-    {
       "id": "models_chapter_chapter",
       "label": "Chapter",
-      "degree": 8
+      "degree": 9
     },
     {
       "id": "models_voiceengine_voiceengine",
       "label": "VoiceEngine",
-      "degree": 8
+      "degree": 9
     },
     {
-      "id": "services_bookimportservice_bookimporterror",
-      "label": "BookImportError",
-      "degree": 7
+      "id": "stores_librarystore_librarystore",
+      "label": "LibraryStore",
+      "degree": 9
     }
   ],
   "surprises": [
     {
       "source": "Book",
-      "target": "Identifiable",
+      "target": "Codable",
       "source_files": [
         "ListrDesktop/Models/Book.swift",
         ""
       ],
       "confidence": "EXTRACTED",
       "relation": "implements",
-      "note": "Bridges community 1 \u2192 community 4"
+      "note": "Bridges community 4 \u2192 community 6"
+    },
+    {
+      "source": "Book",
+      "target": "Hashable",
+      "source_files": [
+        "ListrDesktop/Models/Book.swift",
+        ""
+      ],
+      "confidence": "EXTRACTED",
+      "relation": "implements",
+      "note": "Bridges community 4 \u2192 community 2"
     },
     {
       "source": "Book",
@@ -258,7 +285,7 @@
       ],
       "confidence": "EXTRACTED",
       "relation": "implements",
-      "note": "Bridges community 1 \u2192 community 5"
+      "note": "Bridges community 4 \u2192 community 0"
     },
     {
       "source": "BookFormat",
@@ -269,29 +296,18 @@
       ],
       "confidence": "EXTRACTED",
       "relation": "implements",
-      "note": "Bridges community 5 \u2192 community 4"
+      "note": "Bridges community 0 \u2192 community 2"
     },
     {
-      "source": "ImportedBook",
+      "source": "LibraryPersistenceService",
       "target": "Sendable",
       "source_files": [
-        "ListrDesktop/Services/BookImportService.swift",
+        "ListrDesktop/Services/LibraryPersistenceService.swift",
         ""
       ],
       "confidence": "EXTRACTED",
       "relation": "implements",
-      "note": "Bridges community 5 \u2192 community 0"
-    },
-    {
-      "source": "BookImportError",
-      "target": "String",
-      "source_files": [
-        "ListrDesktop/Services/BookImportService.swift",
-        "ListrDesktop/Services/BookImportService.swift"
-      ],
-      "confidence": "EXTRACTED",
-      "relation": "references",
-      "note": "Bridges community 0 \u2192 community 3"
+      "note": "Bridges community 0 \u2192 community 6"
     }
   ],
   "tokens": {

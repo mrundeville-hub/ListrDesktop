@@ -1,7 +1,7 @@
 import Foundation
 
-struct Chapter: Identifiable, Hashable, Sendable {
-    enum Status: String, Hashable, Sendable {
+struct Chapter: Identifiable, Hashable, Sendable, Codable {
+    enum Status: String, Hashable, Sendable, Codable {
         case pending = "Pending"
         case converting = "Converting"
         case ready = "Ready"

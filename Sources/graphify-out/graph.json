@@ -49,7 +49,7 @@
       "source_file": "ListrDesktop/Models/Book.swift",
       "source_location": "L1",
       "_origin": "ast",
-      "community": 1,
+      "community": 4,
       "norm_label": "book.swift",
       "id": "models_book"
     },
@@ -59,7 +59,7 @@
       "source_file": "ListrDesktop/Models/Book.swift",
       "source_location": "L3",
       "_origin": "ast",
-      "community": 1,
+      "community": 4,
       "norm_label": "book",
       "id": "models_book_book"
     },
@@ -69,7 +69,7 @@
       "source_file": "",
       "source_location": "",
       "_origin": "ast",
-      "community": 4,
+      "community": 2,
       "norm_label": "identifiable",
       "id": "identifiable"
     },
@@ -79,7 +79,7 @@
       "source_file": "",
       "source_location": "",
       "_origin": "ast",
-      "community": 1,
+      "community": 2,
       "norm_label": "hashable",
       "id": "hashable"
     },
@@ -89,7 +89,7 @@
       "source_file": "",
       "source_location": "",
       "_origin": "ast",
-      "community": 5,
+      "community": 0,
       "norm_label": "sendable",
       "id": "sendable"
     },
@@ -99,7 +99,7 @@
       "source_file": "ListrDesktop/Models/Book.swift",
       "source_location": "L4",
       "_origin": "ast",
-      "community": 1,
+      "community": 4,
       "norm_label": "status",
       "id": "models_book_status"
     },
@@ -109,7 +109,7 @@
       "source_file": "",
       "source_location": "",
       "_origin": "ast",
-      "community": 1,
+      "community": 2,
       "norm_label": "string",
       "id": "string"
     },
@@ -119,7 +119,7 @@
       "source_file": "ListrDesktop/Models/Book.swift",
       "source_location": "L5",
       "_origin": "ast",
-      "community": 1,
+      "community": 4,
       "norm_label": "imported",
       "id": "models_book_status_imported"
     },
@@ -129,7 +129,7 @@
       "source_file": "ListrDesktop/Models/Book.swift",
       "source_location": "L6",
       "_origin": "ast",
-      "community": 1,
+      "community": 4,
       "norm_label": "queued",
       "id": "models_book_status_queued"
     },
@@ -139,7 +139,7 @@
       "source_file": "ListrDesktop/Models/Book.swift",
       "source_location": "L7",
       "_origin": "ast",
-      "community": 1,
+      "community": 4,
       "norm_label": "converting",
       "id": "models_book_status_converting"
     },
@@ -149,7 +149,7 @@
       "source_file": "ListrDesktop/Models/Book.swift",
       "source_location": "L8",
       "_origin": "ast",
-      "community": 1,
+      "community": 4,
       "norm_label": "ready",
       "id": "models_book_status_ready"
     },
@@ -159,7 +159,7 @@
       "source_file": "ListrDesktop/Models/Book.swift",
       "source_location": "L9",
       "_origin": "ast",
-      "community": 1,
+      "community": 4,
       "norm_label": "failed",
       "id": "models_book_status_failed"
     },
@@ -169,7 +169,7 @@
       "source_file": "ListrDesktop/Models/Book.swift",
       "source_location": "L12",
       "_origin": "ast",
-      "community": 1,
+      "community": 4,
       "norm_label": "uuid",
       "id": "listrdesktop_models_book_swift_uuid"
     },
@@ -179,7 +179,7 @@
       "source_file": "ListrDesktop/Models/Book.swift",
       "source_location": "L15",
       "_origin": "ast",
-      "community": 1,
+      "community": 4,
       "norm_label": "int",
       "id": "listrdesktop_models_book_swift_int"
     },
@@ -189,7 +189,7 @@
       "source_file": "ListrDesktop/Models/Book.swift",
       "source_location": "L16",
       "_origin": "ast",
-      "community": 1,
+      "community": 4,
       "norm_label": "timeinterval",
       "id": "timeinterval"
     },
@@ -199,7 +199,7 @@
       "source_file": "ListrDesktop/Models/Book.swift",
       "source_location": "L18",
       "_origin": "ast",
-      "community": 1,
+      "community": 4,
       "norm_label": "double",
       "id": "listrdesktop_models_book_swift_double"
     },
@@ -209,7 +209,7 @@
       "source_file": "ListrDesktop/Models/Book.swift",
       "source_location": "L19",
       "_origin": "ast",
-      "community": 1,
+      "community": 4,
       "norm_label": "date",
       "id": "date"
     },
@@ -219,7 +219,7 @@
       "source_file": "ListrDesktop/Models/Book.swift",
       "source_location": "L21",
       "_origin": "ast",
-      "community": 1,
+      "community": 4,
       "norm_label": "chapter",
       "id": "listrdesktop_models_book_swift_chapter"
     },
@@ -229,7 +229,7 @@
       "source_file": "ListrDesktop/Models/BookFormat.swift",
       "source_location": "L1",
       "_origin": "ast",
-      "community": 4,
+      "community": 2,
       "norm_label": "bookformat.swift",
       "id": "models_bookformat"
     },
@@ -239,7 +239,7 @@
       "source_file": "ListrDesktop/Models/BookFormat.swift",
       "source_location": "L4",
       "_origin": "ast",
-      "community": 4,
+      "community": 2,
       "norm_label": "bookformat",
       "id": "models_bookformat_bookformat"
     },
@@ -249,7 +249,7 @@
       "source_file": "",
       "source_location": "",
       "_origin": "ast",
-      "community": 4,
+      "community": 2,
       "norm_label": "caseiterable",
       "id": "caseiterable"
     },
@@ -259,7 +259,7 @@
       "source_file": "ListrDesktop/Models/BookFormat.swift",
       "source_location": "L5",
       "_origin": "ast",
-      "community": 4,
+      "community": 2,
       "norm_label": "fb2",
       "id": "models_bookformat_bookformat_fb2"
     },
@@ -269,7 +269,7 @@
       "source_file": "ListrDesktop/Models/BookFormat.swift",
       "source_location": "L6",
       "_origin": "ast",
-      "community": 4,
+      "community": 2,
       "norm_label": "epub",
       "id": "models_bookformat_bookformat_epub"
     },
@@ -279,7 +279,7 @@
       "source_file": "ListrDesktop/Models/BookFormat.swift",
       "source_location": "L7",
       "_origin": "ast",
-      "community": 4,
+      "community": 2,
       "norm_label": "plaintext",
       "id": "models_bookformat_bookformat_plaintext"
     },
@@ -289,7 +289,7 @@
       "source_file": "ListrDesktop/Models/BookFormat.swift",
       "source_location": "L11",
       "_origin": "ast",
-      "community": 4,
+      "community": 2,
       "norm_label": "uttype",
       "id": "uttype"
     },
@@ -299,7 +299,7 @@
       "source_file": "ListrDesktop/Models/BookFormat.swift",
       "source_location": "L18",
       "_origin": "ast",
-      "community": 4,
+      "community": 2,
       "norm_label": ".detect()",
       "id": "models_bookformat_bookformat_detect"
     },
@@ -309,7 +309,7 @@
       "source_file": "ListrDesktop/Models/BookFormat.swift",
       "source_location": "L18",
       "_origin": "ast",
-      "community": 4,
+      "community": 2,
       "norm_label": "url",
       "id": "listrdesktop_models_bookformat_swift_url"
     },
@@ -319,7 +319,7 @@
       "source_file": "ListrDesktop/Models/Chapter.swift",
       "source_location": "L1",
       "_origin": "ast",
-      "community": 1,
+      "community": 2,
       "norm_label": "chapter.swift",
       "id": "models_chapter"
     },
@@ -329,7 +329,7 @@
       "source_file": "ListrDesktop/Models/Chapter.swift",
       "source_location": "L3",
       "_origin": "ast",
-      "community": 1,
+      "community": 2,
       "norm_label": "chapter",
       "id": "models_chapter_chapter"
     },
@@ -339,7 +339,7 @@
       "source_file": "ListrDesktop/Models/Chapter.swift",
       "source_location": "L4",
       "_origin": "ast",
-      "community": 1,
+      "community": 2,
       "norm_label": "status",
       "id": "models_chapter_status"
     },
@@ -349,7 +349,7 @@
       "source_file": "ListrDesktop/Models/Chapter.swift",
       "source_location": "L5",
       "_origin": "ast",
-      "community": 1,
+      "community": 2,
       "norm_label": "pending",
       "id": "models_chapter_status_pending"
     },
@@ -359,7 +359,7 @@
       "source_file": "ListrDesktop/Models/Chapter.swift",
       "source_location": "L6",
       "_origin": "ast",
-      "community": 1,
+      "community": 2,
       "norm_label": "converting",
       "id": "models_chapter_status_converting"
     },
@@ -369,7 +369,7 @@
       "source_file": "ListrDesktop/Models/Chapter.swift",
       "source_location": "L7",
       "_origin": "ast",
-      "community": 1,
+      "community": 2,
       "norm_label": "ready",
       "id": "models_chapter_status_ready"
     },
@@ -379,7 +379,7 @@
       "source_file": "ListrDesktop/Models/Chapter.swift",
       "source_location": "L8",
       "_origin": "ast",
-      "community": 1,
+      "community": 2,
       "norm_label": "failed",
       "id": "models_chapter_status_failed"
     },
@@ -389,7 +389,7 @@
       "source_file": "ListrDesktop/Models/Chapter.swift",
       "source_location": "L11",
       "_origin": "ast",
-      "community": 1,
+      "community": 2,
       "norm_label": "uuid",
       "id": "listrdesktop_models_chapter_swift_uuid"
     },
@@ -399,7 +399,7 @@
       "source_file": "ListrDesktop/Models/Chapter.swift",
       "source_location": "L12",
       "_origin": "ast",
-      "community": 1,
+      "community": 2,
       "norm_label": "int",
       "id": "listrdesktop_models_chapter_swift_int"
     },
@@ -409,7 +409,7 @@
       "source_file": "ListrDesktop/Models/VoiceEngine.swift",
       "source_location": "L1",
       "_origin": "ast",
-      "community": 4,
+      "community": 2,
       "norm_label": "voiceengine.swift",
       "id": "models_voiceengine"
     },
@@ -419,7 +419,7 @@
       "source_file": "ListrDesktop/Models/VoiceEngine.swift",
       "source_location": "L3",
       "_origin": "ast",
-      "community": 4,
+      "community": 2,
       "norm_label": "voiceengine",
       "id": "models_voiceengine_voiceengine"
     },
@@ -429,7 +429,7 @@
       "source_file": "ListrDesktop/Models/VoiceEngine.swift",
       "source_location": "L4",
       "_origin": "ast",
-      "community": 4,
+      "community": 2,
       "norm_label": "system",
       "id": "models_voiceengine_voiceengine_system"
     },
@@ -439,7 +439,7 @@
       "source_file": "ListrDesktop/Models/VoiceEngine.swift",
       "source_location": "L5",
       "_origin": "ast",
-      "community": 4,
+      "community": 2,
       "norm_label": "neurallocal",
       "id": "models_voiceengine_voiceengine_neurallocal"
     },
@@ -449,7 +449,7 @@
       "source_file": "ListrDesktop/Models/VoiceEngine.swift",
       "source_location": "L6",
       "_origin": "ast",
-      "community": 4,
+      "community": 2,
       "norm_label": "piper",
       "id": "models_voiceengine_voiceengine_piper"
     },
@@ -579,7 +579,7 @@
       "source_file": "ListrDesktop/Services/BookImportService.swift",
       "source_location": "L28",
       "_origin": "ast",
-      "community": 5,
+      "community": 0,
       "norm_label": "bookimportservice",
       "id": "services_bookimportservice_bookimportservice"
     },
@@ -929,7 +929,7 @@
       "source_file": "ListrDesktop/Services/TTSService.swift",
       "source_location": "L1",
       "_origin": "ast",
-      "community": 6,
+      "community": 7,
       "norm_label": "ttsservice.swift",
       "id": "services_ttsservice"
     },
@@ -939,7 +939,7 @@
       "source_file": "ListrDesktop/Services/TTSService.swift",
       "source_location": "L3",
       "_origin": "ast",
-      "community": 6,
+      "community": 7,
       "norm_label": "ttsservice",
       "id": "services_ttsservice_ttsservice"
     },
@@ -949,7 +949,7 @@
       "source_file": "ListrDesktop/Services/TTSService.swift",
       "source_location": "L7",
       "_origin": "ast",
-      "community": 6,
+      "community": 7,
       "norm_label": "plannedttsservice",
       "id": "services_ttsservice_plannedttsservice"
     },
@@ -959,7 +959,7 @@
       "source_file": "ListrDesktop/Services/TTSService.swift",
       "source_location": "L8",
       "_origin": "ast",
-      "community": 6,
+      "community": 7,
       "norm_label": ".synthesize()",
       "id": "services_ttsservice_plannedttsservice_synthesize"
     },
@@ -969,7 +969,7 @@
       "source_file": "ListrDesktop/Services/TTSService.swift",
       "source_location": "L8",
       "_origin": "ast",
-      "community": 6,
+      "community": 7,
       "norm_label": "string",
       "id": "listrdesktop_services_ttsservice_swift_string"
     },
@@ -979,7 +979,7 @@
       "source_file": "ListrDesktop/Services/TTSService.swift",
       "source_location": "L8",
       "_origin": "ast",
-      "community": 6,
+      "community": 7,
       "norm_label": "voiceengine",
       "id": "listrdesktop_services_ttsservice_swift_voiceengine"
     },
@@ -989,7 +989,7 @@
       "source_file": "ListrDesktop/Services/TTSService.swift",
       "source_location": "L8",
       "_origin": "ast",
-      "community": 6,
+      "community": 7,
       "norm_label": "url",
       "id": "listrdesktop_services_ttsservice_swift_url"
     },
@@ -999,7 +999,7 @@
       "source_file": "ListrDesktop/Stores/ConversionStore.swift",
       "source_location": "L1",
       "_origin": "ast",
-      "community": 7,
+      "community": 8,
       "norm_label": "conversionstore.swift",
       "id": "stores_conversionstore"
     },
@@ -1009,7 +1009,7 @@
       "source_file": "ListrDesktop/Stores/ConversionStore.swift",
       "source_location": "L4",
       "_origin": "ast",
-      "community": 7,
+      "community": 8,
       "norm_label": "conversionstore",
       "id": "stores_conversionstore_conversionstore"
     },
@@ -1019,7 +1019,7 @@
       "source_file": "ListrDesktop/Stores/ConversionStore.swift",
       "source_location": "L6",
       "_origin": "ast",
-      "community": 7,
+      "community": 8,
       "norm_label": "voiceengine",
       "id": "listrdesktop_stores_conversionstore_swift_voiceengine"
     },
@@ -1029,7 +1029,7 @@
       "source_file": "ListrDesktop/Stores/ConversionStore.swift",
       "source_location": "L7",
       "_origin": "ast",
-      "community": 7,
+      "community": 8,
       "norm_label": "double",
       "id": "listrdesktop_stores_conversionstore_swift_double"
     },
@@ -1039,7 +1039,7 @@
       "source_file": "ListrDesktop/Stores/ConversionStore.swift",
       "source_location": "L8",
       "_origin": "ast",
-      "community": 7,
+      "community": 8,
       "norm_label": "int",
       "id": "listrdesktop_stores_conversionstore_swift_int"
     },
@@ -1049,7 +1049,7 @@
       "source_file": "ListrDesktop/Stores/ConversionStore.swift",
       "source_location": "L9",
       "_origin": "ast",
-      "community": 7,
+      "community": 8,
       "norm_label": "bool",
       "id": "listrdesktop_stores_conversionstore_swift_bool"
     },
@@ -1059,7 +1059,7 @@
       "source_file": "ListrDesktop/Stores/ConversionStore.swift",
       "source_location": "L12",
       "_origin": "ast",
-      "community": 7,
+      "community": 8,
       "norm_label": "string",
       "id": "listrdesktop_stores_conversionstore_swift_string"
     },
@@ -1169,7 +1169,7 @@
       "source_file": "ListrDesktop/Views/ContentView.swift",
       "source_location": "L1",
       "_origin": "ast",
-      "community": 2,
+      "community": 1,
       "norm_label": "contentview.swift",
       "id": "views_contentview"
     },
@@ -1179,7 +1179,7 @@
       "source_file": "ListrDesktop/Views/ContentView.swift",
       "source_location": "L3",
       "_origin": "ast",
-      "community": 2,
+      "community": 1,
       "norm_label": "contentview",
       "id": "views_contentview_contentview"
     },
@@ -1189,7 +1189,7 @@
       "source_file": "",
       "source_location": "",
       "_origin": "ast",
-      "community": 2,
+      "community": 1,
       "norm_label": "view",
       "id": "view"
     },
@@ -1199,7 +1199,7 @@
       "source_file": "ListrDesktop/Views/DetailView.swift",
       "source_location": "L1",
       "_origin": "ast",
-      "community": 2,
+      "community": 1,
       "norm_label": "detailview.swift",
       "id": "views_detailview"
     },
@@ -1209,7 +1209,7 @@
       "source_file": "ListrDesktop/Views/DetailView.swift",
       "source_location": "L3",
       "_origin": "ast",
-      "community": 2,
+      "community": 1,
       "norm_label": "detailview",
       "id": "views_detailview_detailview"
     },
@@ -1219,7 +1219,7 @@
       "source_file": "ListrDesktop/Views/DetailView.swift",
       "source_location": "L4",
       "_origin": "ast",
-      "community": 2,
+      "community": 1,
       "norm_label": "book",
       "id": "listrdesktop_views_detailview_swift_book"
     },
@@ -1229,7 +1229,7 @@
       "source_file": "ListrDesktop/Views/DetailView.swift",
       "source_location": "L24",
       "_origin": "ast",
-      "community": 2,
+      "community": 1,
       "norm_label": "headerview",
       "id": "views_detailview_headerview"
     },
@@ -1239,7 +1239,7 @@
       "source_file": "ListrDesktop/Views/DetailView.swift",
       "source_location": "L43",
       "_origin": "ast",
-      "community": 2,
+      "community": 1,
       "norm_label": "conversionpanel",
       "id": "views_detailview_conversionpanel"
     },
@@ -1249,7 +1249,7 @@
       "source_file": "ListrDesktop/Views/DetailView.swift",
       "source_location": "L86",
       "_origin": "ast",
-      "community": 2,
+      "community": 1,
       "norm_label": "chapterpanel",
       "id": "views_detailview_chapterpanel"
     },
@@ -1259,7 +1259,7 @@
       "source_file": "ListrDesktop/Views/DetailView.swift",
       "source_location": "L114",
       "_origin": "ast",
-      "community": 2,
+      "community": 1,
       "norm_label": "chapter",
       "id": "listrdesktop_views_detailview_swift_chapter"
     },
@@ -1269,7 +1269,7 @@
       "source_file": "ListrDesktop/Views/DetailView.swift",
       "source_location": "L121",
       "_origin": "ast",
-      "community": 2,
+      "community": 1,
       "norm_label": "stat",
       "id": "views_detailview_stat"
     },
@@ -1279,7 +1279,7 @@
       "source_file": "ListrDesktop/Views/DetailView.swift",
       "source_location": "L122",
       "_origin": "ast",
-      "community": 2,
+      "community": 1,
       "norm_label": "string",
       "id": "listrdesktop_views_detailview_swift_string"
     },
@@ -1289,7 +1289,7 @@
       "source_file": "ListrDesktop/Views/SettingsView.swift",
       "source_location": "L1",
       "_origin": "ast",
-      "community": 2,
+      "community": 1,
       "norm_label": "settingsview.swift",
       "id": "views_settingsview"
     },
@@ -1299,7 +1299,7 @@
       "source_file": "ListrDesktop/Views/SettingsView.swift",
       "source_location": "L3",
       "_origin": "ast",
-      "community": 2,
+      "community": 1,
       "norm_label": "settingsview",
       "id": "views_settingsview_settingsview"
     },
@@ -1309,7 +1309,7 @@
       "source_file": "ListrDesktop/Views/SidebarView.swift",
       "source_location": "L1",
       "_origin": "ast",
-      "community": 8,
+      "community": 1,
       "norm_label": "sidebarview.swift",
       "id": "views_sidebarview"
     },
@@ -1319,7 +1319,7 @@
       "source_file": "ListrDesktop/Views/SidebarView.swift",
       "source_location": "L3",
       "_origin": "ast",
-      "community": 8,
+      "community": 1,
       "norm_label": "sidebarview",
       "id": "views_sidebarview_sidebarview"
     },
@@ -1329,7 +1329,7 @@
       "source_file": "ListrDesktop/Views/SidebarView.swift",
       "source_location": "L5",
       "_origin": "ast",
-      "community": 8,
+      "community": 1,
       "norm_label": "book",
       "id": "listrdesktop_views_sidebarview_swift_book"
     },
@@ -1339,7 +1339,7 @@
       "source_file": "ListrDesktop/Views/SidebarView.swift",
       "source_location": "L21",
       "_origin": "ast",
-      "community": 8,
+      "community": 1,
       "norm_label": "bookrow",
       "id": "views_sidebarview_bookrow"
     },
@@ -1349,7 +1349,7 @@
       "source_file": "ListrDesktop/Views/SidebarView.swift",
       "source_location": "L39",
       "_origin": "ast",
-      "community": 8,
+      "community": 1,
       "norm_label": "string",
       "id": "listrdesktop_views_sidebarview_swift_string"
     },
@@ -1389,7 +1389,7 @@
       "source_file": "ListrDesktop/Views/DetailView.swift",
       "source_location": "L30",
       "_origin": "ast",
-      "community": 2,
+      "community": 1,
       "norm_label": "emptylibraryview",
       "id": "views_detailview_emptylibraryview"
     },
@@ -1399,7 +1399,7 @@
       "source_file": "ListrDesktop/Views/DetailView.swift",
       "source_location": "L44",
       "_origin": "ast",
-      "community": 2,
+      "community": 1,
       "norm_label": "herobookpanel",
       "id": "views_detailview_herobookpanel"
     },
@@ -1409,7 +1409,7 @@
       "source_file": "ListrDesktop/Views/DetailView.swift",
       "source_location": "L138",
       "_origin": "ast",
-      "community": 2,
+      "community": 1,
       "norm_label": "queuepanel",
       "id": "views_detailview_queuepanel"
     },
@@ -1419,7 +1419,7 @@
       "source_file": "ListrDesktop/Views/DetailView.swift",
       "source_location": "L168",
       "_origin": "ast",
-      "community": 2,
+      "community": 1,
       "norm_label": "chapter",
       "id": "chapter"
     },
@@ -1429,7 +1429,7 @@
       "source_file": "ListrDesktop/Views/DetailView.swift",
       "source_location": "L204",
       "_origin": "ast",
-      "community": 2,
+      "community": 1,
       "norm_label": "chaptercard",
       "id": "views_detailview_chaptercard"
     },
@@ -1439,7 +1439,7 @@
       "source_file": "ListrDesktop/Views/DetailView.swift",
       "source_location": "L229",
       "_origin": "ast",
-      "community": 2,
+      "community": 1,
       "norm_label": "color",
       "id": "listrdesktop_views_detailview_swift_color"
     },
@@ -1449,7 +1449,7 @@
       "source_file": "ListrDesktop/Views/DetailView.swift",
       "source_location": "L239",
       "_origin": "ast",
-      "community": 2,
+      "community": 1,
       "norm_label": "metrictile",
       "id": "views_detailview_metrictile"
     },
@@ -1459,9 +1459,169 @@
       "source_file": "ListrDesktop/Views/SidebarView.swift",
       "source_location": "L64",
       "_origin": "ast",
-      "community": 8,
+      "community": 1,
       "norm_label": "color",
       "id": "listrdesktop_views_sidebarview_swift_color"
+    },
+    {
+      "label": "Codable",
+      "file_type": "code",
+      "source_file": "",
+      "source_location": "",
+      "_origin": "ast",
+      "community": 6,
+      "norm_label": "codable",
+      "id": "codable"
+    },
+    {
+      "label": "Double",
+      "file_type": "code",
+      "source_file": "ListrDesktop/Models/Book.swift",
+      "source_location": "L18",
+      "_origin": "ast",
+      "community": 4,
+      "norm_label": "double",
+      "id": "double"
+    },
+    {
+      "label": "Bool",
+      "file_type": "code",
+      "source_file": "ListrDesktop/Services/BookImportService.swift",
+      "source_location": "L161",
+      "_origin": "ast",
+      "community": 3,
+      "norm_label": "bool",
+      "id": "bool"
+    },
+    {
+      "label": ".elementNameMatches()",
+      "file_type": "code",
+      "source_file": "ListrDesktop/Services/BookImportService.swift",
+      "source_location": "L320",
+      "_origin": "ast",
+      "community": 3,
+      "norm_label": ".elementnamematches()",
+      "id": "services_bookimportservice_epubpackageparser_elementnamematches"
+    },
+    {
+      "label": "LibraryPersistenceService.swift",
+      "file_type": "code",
+      "source_file": "ListrDesktop/Services/LibraryPersistenceService.swift",
+      "source_location": "L1",
+      "_origin": "ast",
+      "community": 6,
+      "norm_label": "librarypersistenceservice.swift",
+      "id": "services_librarypersistenceservice"
+    },
+    {
+      "label": "PersistedLibrary",
+      "file_type": "code",
+      "source_file": "ListrDesktop/Services/LibraryPersistenceService.swift",
+      "source_location": "L3",
+      "_origin": "ast",
+      "community": 6,
+      "norm_label": "persistedlibrary",
+      "id": "services_librarypersistenceservice_persistedlibrary"
+    },
+    {
+      "label": "Book",
+      "file_type": "code",
+      "source_file": "ListrDesktop/Services/LibraryPersistenceService.swift",
+      "source_location": "L4",
+      "_origin": "ast",
+      "community": 6,
+      "norm_label": "book",
+      "id": "listrdesktop_services_librarypersistenceservice_swift_book"
+    },
+    {
+      "label": "LibraryPersistenceService",
+      "file_type": "code",
+      "source_file": "ListrDesktop/Services/LibraryPersistenceService.swift",
+      "source_location": "L8",
+      "_origin": "ast",
+      "community": 6,
+      "norm_label": "librarypersistenceservice",
+      "id": "services_librarypersistenceservice_librarypersistenceservice"
+    },
+    {
+      "label": "URL",
+      "file_type": "code",
+      "source_file": "ListrDesktop/Services/LibraryPersistenceService.swift",
+      "source_location": "L9",
+      "_origin": "ast",
+      "community": 6,
+      "norm_label": "url",
+      "id": "listrdesktop_services_librarypersistenceservice_swift_url"
+    },
+    {
+      "label": ".load()",
+      "file_type": "code",
+      "source_file": "ListrDesktop/Services/LibraryPersistenceService.swift",
+      "source_location": "L16",
+      "_origin": "ast",
+      "community": 6,
+      "norm_label": ".load()",
+      "id": "services_librarypersistenceservice_librarypersistenceservice_load"
+    },
+    {
+      "label": ".save()",
+      "file_type": "code",
+      "source_file": "ListrDesktop/Services/LibraryPersistenceService.swift",
+      "source_location": "L25",
+      "_origin": "ast",
+      "community": 6,
+      "norm_label": ".save()",
+      "id": "services_librarypersistenceservice_librarypersistenceservice_save"
+    },
+    {
+      "label": "JSONEncoder",
+      "file_type": "code",
+      "source_file": "ListrDesktop/Services/LibraryPersistenceService.swift",
+      "source_location": "L40",
+      "_origin": "ast",
+      "community": 6,
+      "norm_label": "jsonencoder",
+      "id": "services_librarypersistenceservice_jsonencoder"
+    },
+    {
+      "label": "JSONDecoder",
+      "file_type": "code",
+      "source_file": "ListrDesktop/Services/LibraryPersistenceService.swift",
+      "source_location": "L49",
+      "_origin": "ast",
+      "community": 6,
+      "norm_label": "jsondecoder",
+      "id": "services_librarypersistenceservice_jsondecoder"
+    },
+    {
+      "label": "LibraryPersistenceService",
+      "file_type": "code",
+      "source_file": "ListrDesktop/Stores/LibraryStore.swift",
+      "source_location": "L14",
+      "_origin": "ast",
+      "community": 5,
+      "norm_label": "librarypersistenceservice",
+      "id": "librarypersistenceservice"
+    },
+    {
+      "label": ".loadPersistedLibraryIfNeeded()",
+      "file_type": "code",
+      "source_file": "ListrDesktop/Stores/LibraryStore.swift",
+      "source_location": "L44",
+      "_origin": "ast",
+      "community": 5,
+      "norm_label": ".loadpersistedlibraryifneeded()",
+      "id": "stores_librarystore_librarystore_loadpersistedlibraryifneeded"
+    },
+    {
+      "label": ".saveLibrary()",
+      "file_type": "code",
+      "source_file": "ListrDesktop/Stores/LibraryStore.swift",
+      "source_location": "L92",
+      "_origin": "ast",
+      "community": 5,
+      "norm_label": ".savelibrary()",
+      "id": "stores_librarystore_librarystore_savelibrary"
     }
   ],
   "links": [
@@ -1517,6 +1677,16 @@
       "target": "models_book_status"
     },
     {
+      "relation": "implements",
+      "confidence": "EXTRACTED",
+      "source_file": "ListrDesktop/Models/Book.swift",
+      "source_location": "L3",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "models_book_book",
+      "target": "codable"
+    },
+    {
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "ListrDesktop/Models/Book.swift",
@@ -1526,6 +1696,17 @@
       "confidence_score": 1.0,
       "source": "models_book_book",
       "target": "date"
+    },
+    {
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "source_file": "ListrDesktop/Models/Book.swift",
+      "source_location": "L18",
+      "weight": 1.0,
+      "context": "field",
+      "confidence_score": 1.0,
+      "source": "models_book_book",
+      "target": "double"
     },
     {
       "relation": "implements",
@@ -1765,6 +1946,36 @@
       "target": "sendable"
     },
     {
+      "relation": "implements",
+      "confidence": "EXTRACTED",
+      "source_file": "ListrDesktop/Services/LibraryPersistenceService.swift",
+      "source_location": "L8",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "services_librarypersistenceservice_librarypersistenceservice",
+      "target": "sendable"
+    },
+    {
+      "relation": "implements",
+      "confidence": "EXTRACTED",
+      "source_file": "ListrDesktop/Services/LibraryPersistenceService.swift",
+      "source_location": "L3",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "services_librarypersistenceservice_persistedlibrary",
+      "target": "sendable"
+    },
+    {
+      "relation": "implements",
+      "confidence": "EXTRACTED",
+      "source_file": "ListrDesktop/Models/Book.swift",
+      "source_location": "L4",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "models_book_status",
+      "target": "codable"
+    },
+    {
       "relation": "case_of",
       "confidence": "EXTRACTED",
       "source_file": "ListrDesktop/Models/Book.swift",
@@ -1888,6 +2099,16 @@
       "target": "caseiterable"
     },
     {
+      "relation": "implements",
+      "confidence": "EXTRACTED",
+      "source_file": "ListrDesktop/Models/BookFormat.swift",
+      "source_location": "L4",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "models_bookformat_bookformat",
+      "target": "codable"
+    },
+    {
       "relation": "case_of",
       "confidence": "EXTRACTED",
       "source_file": "ListrDesktop/Models/BookFormat.swift",
@@ -1981,6 +2202,16 @@
       "target": "models_chapter_status"
     },
     {
+      "relation": "implements",
+      "confidence": "EXTRACTED",
+      "source_file": "ListrDesktop/Models/Chapter.swift",
+      "source_location": "L3",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "models_chapter_chapter",
+      "target": "codable"
+    },
+    {
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "ListrDesktop/Models/Chapter.swift",
@@ -2012,6 +2243,16 @@
       "confidence_score": 1.0,
       "source": "models_chapter_chapter",
       "target": "models_chapter_status"
+    },
+    {
+      "relation": "implements",
+      "confidence": "EXTRACTED",
+      "source_file": "ListrDesktop/Models/Chapter.swift",
+      "source_location": "L4",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "models_chapter_status",
+      "target": "codable"
     },
     {
       "relation": "case_of",
@@ -2062,6 +2303,16 @@
       "confidence_score": 1.0,
       "source": "models_voiceengine",
       "target": "models_voiceengine_voiceengine"
+    },
+    {
+      "relation": "implements",
+      "confidence": "EXTRACTED",
+      "source_file": "ListrDesktop/Models/VoiceEngine.swift",
+      "source_location": "L3",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "models_voiceengine_voiceengine",
+      "target": "codable"
     },
     {
       "relation": "case_of",
@@ -2117,7 +2368,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "ListrDesktop/Services/BookImportService.swift",
-      "source_location": "L321",
+      "source_location": "L326",
       "weight": 1.0,
       "confidence_score": 1.0,
       "source": "services_bookimportservice",
@@ -2207,7 +2458,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "ListrDesktop/Services/BookImportService.swift",
-      "source_location": "L340",
+      "source_location": "L345",
       "weight": 1.0,
       "confidence_score": 1.0,
       "source": "services_bookimportservice",
@@ -2322,7 +2573,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "ListrDesktop/Services/BookImportService.swift",
-      "source_location": "L322",
+      "source_location": "L327",
       "weight": 1.0,
       "context": "parameter_type",
       "confidence_score": 1.0,
@@ -2410,6 +2661,17 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "ListrDesktop/Services/BookImportService.swift",
+      "source_location": "L320",
+      "weight": 1.0,
+      "context": "parameter_type",
+      "confidence_score": 1.0,
+      "source": "services_bookimportservice_epubpackageparser_elementnamematches",
+      "target": "listrdesktop_services_bookimportservice_swift_string"
+    },
+    {
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "source_file": "ListrDesktop/Services/BookImportService.swift",
       "source_location": "L316",
       "weight": 1.0,
       "context": "parameter_type",
@@ -2476,7 +2738,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "ListrDesktop/Services/BookImportService.swift",
-      "source_location": "L341",
+      "source_location": "L346",
       "weight": 1.0,
       "context": "return_type",
       "confidence_score": 1.0,
@@ -2487,7 +2749,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "ListrDesktop/Services/BookImportService.swift",
-      "source_location": "L373",
+      "source_location": "L378",
       "weight": 1.0,
       "context": "return_type",
       "confidence_score": 1.0,
@@ -2498,7 +2760,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "ListrDesktop/Services/BookImportService.swift",
-      "source_location": "L360",
+      "source_location": "L365",
       "weight": 1.0,
       "context": "return_type",
       "confidence_score": 1.0,
@@ -2509,7 +2771,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "ListrDesktop/Services/BookImportService.swift",
-      "source_location": "L350",
+      "source_location": "L355",
       "weight": 1.0,
       "context": "return_type",
       "confidence_score": 1.0,
@@ -2598,7 +2860,7 @@
       "context": "return_type",
       "confidence": "EXTRACTED",
       "source_file": "ListrDesktop/Services/BookImportService.swift",
-      "source_location": "L322",
+      "source_location": "L327",
       "weight": 1.0,
       "confidence_score": 1.0,
       "source": "services_bookimportservice_chaptersplitter_split",
@@ -2697,7 +2959,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "ListrDesktop/Stores/LibraryStore.swift",
-      "source_location": "L44",
+      "source_location": "L69",
       "weight": 1.0,
       "source": "stores_librarystore_librarystore_importbook",
       "target": "services_bookimportservice_bookimportservice"
@@ -2842,6 +3104,17 @@
       "confidence_score": 1.0,
       "source": "services_bookimportservice_fb2bookparser_parse",
       "target": "xmlparser"
+    },
+    {
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "source_file": "ListrDesktop/Services/BookImportService.swift",
+      "source_location": "L165",
+      "weight": 1.0,
+      "context": "field",
+      "confidence_score": 1.0,
+      "source": "services_bookimportservice_fb2xmldelegate",
+      "target": "bool"
     },
     {
       "relation": "references",
@@ -3054,6 +3327,17 @@
       "target": "listrdesktop_services_bookimportservice_swift_bool"
     },
     {
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "source_file": "ListrDesktop/Services/BookImportService.swift",
+      "source_location": "L170",
+      "weight": 1.0,
+      "context": "return_type",
+      "confidence_score": 1.0,
+      "source": "services_bookimportservice_fb2xmldelegate_pathsuffix",
+      "target": "bool"
+    },
+    {
       "relation": "calls",
       "context": "call",
       "confidence": "EXTRACTED",
@@ -3251,6 +3535,16 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "ListrDesktop/Services/BookImportService.swift",
+      "source_location": "L320",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "services_bookimportservice_epubpackageparser",
+      "target": "services_bookimportservice_epubpackageparser_elementnamematches"
+    },
+    {
+      "relation": "method",
+      "confidence": "EXTRACTED",
+      "source_file": "ListrDesktop/Services/BookImportService.swift",
       "source_location": "L316",
       "weight": 1.0,
       "confidence_score": 1.0,
@@ -3280,10 +3574,21 @@
       "target": "services_bookimportservice_textcleaner_clean"
     },
     {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "ListrDesktop/Services/BookImportService.swift",
+      "source_location": "L309",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "services_bookimportservice_epubpackageparser_parser",
+      "target": "services_bookimportservice_epubpackageparser_elementnamematches"
+    },
+    {
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "ListrDesktop/Services/BookImportService.swift",
-      "source_location": "L322",
+      "source_location": "L327",
       "weight": 1.0,
       "confidence_score": 1.0,
       "source": "services_bookimportservice_chaptersplitter",
@@ -3294,7 +3599,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "ListrDesktop/Services/BookImportService.swift",
-      "source_location": "L323",
+      "source_location": "L328",
       "weight": 1.0,
       "confidence_score": 1.0,
       "source": "services_bookimportservice_chaptersplitter_split",
@@ -3304,7 +3609,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "ListrDesktop/Services/BookImportService.swift",
-      "source_location": "L341",
+      "source_location": "L346",
       "weight": 1.0,
       "confidence_score": 1.0,
       "source": "services_bookimportservice_textcleaner",
@@ -3314,7 +3619,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "ListrDesktop/Services/BookImportService.swift",
-      "source_location": "L373",
+      "source_location": "L378",
       "weight": 1.0,
       "confidence_score": 1.0,
       "source": "services_bookimportservice_textcleaner",
@@ -3324,7 +3629,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "ListrDesktop/Services/BookImportService.swift",
-      "source_location": "L360",
+      "source_location": "L365",
       "weight": 1.0,
       "confidence_score": 1.0,
       "source": "services_bookimportservice_textcleaner",
@@ -3334,7 +3639,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "ListrDesktop/Services/BookImportService.swift",
-      "source_location": "L350",
+      "source_location": "L355",
       "weight": 1.0,
       "confidence_score": 1.0,
       "source": "services_bookimportservice_textcleaner",
@@ -3345,7 +3650,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "ListrDesktop/Services/BookImportService.swift",
-      "source_location": "L357",
+      "source_location": "L362",
       "weight": 1.0,
       "confidence_score": 1.0,
       "source": "services_bookimportservice_textcleaner_htmltotext",
@@ -3356,7 +3661,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "ListrDesktop/Services/BookImportService.swift",
-      "source_location": "L369",
+      "source_location": "L374",
       "weight": 1.0,
       "confidence_score": 1.0,
       "source": "services_bookimportservice_textcleaner_firstheading",
@@ -3367,7 +3672,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "ListrDesktop/Services/BookImportService.swift",
-      "source_location": "L356",
+      "source_location": "L361",
       "weight": 1.0,
       "confidence_score": 1.0,
       "source": "services_bookimportservice_textcleaner_htmltotext",
@@ -3525,7 +3830,18 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "ListrDesktop/Stores/LibraryStore.swift",
-      "source_location": "L17",
+      "source_location": "L14",
+      "weight": 1.0,
+      "context": "field",
+      "confidence_score": 1.0,
+      "source": "stores_librarystore_librarystore",
+      "target": "librarypersistenceservice"
+    },
+    {
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "source_file": "ListrDesktop/Stores/LibraryStore.swift",
+      "source_location": "L23",
       "weight": 1.0,
       "context": "field",
       "confidence_score": 1.0,
@@ -3536,7 +3852,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "ListrDesktop/Stores/LibraryStore.swift",
-      "source_location": "L10",
+      "source_location": "L12",
       "weight": 1.0,
       "context": "field",
       "confidence_score": 1.0,
@@ -3547,7 +3863,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "ListrDesktop/Stores/LibraryStore.swift",
-      "source_location": "L37",
+      "source_location": "L62",
       "weight": 1.0,
       "confidence_score": 1.0,
       "source": "stores_librarystore_librarystore",
@@ -3557,7 +3873,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "ListrDesktop/Stores/LibraryStore.swift",
-      "source_location": "L22",
+      "source_location": "L28",
       "weight": 1.0,
       "confidence_score": 1.0,
       "source": "stores_librarystore_librarystore",
@@ -3567,18 +3883,38 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "ListrDesktop/Stores/LibraryStore.swift",
-      "source_location": "L12",
+      "source_location": "L17",
       "weight": 1.0,
       "confidence_score": 1.0,
       "source": "stores_librarystore_librarystore",
       "target": "stores_librarystore_librarystore_init"
     },
     {
+      "relation": "method",
+      "confidence": "EXTRACTED",
+      "source_file": "ListrDesktop/Stores/LibraryStore.swift",
+      "source_location": "L44",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "stores_librarystore_librarystore",
+      "target": "stores_librarystore_librarystore_loadpersistedlibraryifneeded"
+    },
+    {
+      "relation": "method",
+      "confidence": "EXTRACTED",
+      "source_file": "ListrDesktop/Stores/LibraryStore.swift",
+      "source_location": "L92",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "stores_librarystore_librarystore",
+      "target": "stores_librarystore_librarystore_savelibrary"
+    },
+    {
       "relation": "calls",
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "ListrDesktop/Stores/LibraryStore.swift",
-      "source_location": "L47",
+      "source_location": "L72",
       "weight": 1.0,
       "confidence_score": 1.0,
       "source": "stores_librarystore_librarystore_importbook",
@@ -3589,7 +3925,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "ListrDesktop/Stores/LibraryStore.swift",
-      "source_location": "L23",
+      "source_location": "L29",
       "weight": 1.0,
       "confidence_score": 1.0,
       "source": "stores_librarystore_librarystore_importplaceholderbook",
@@ -3599,7 +3935,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "ListrDesktop/Stores/LibraryStore.swift",
-      "source_location": "L12",
+      "source_location": "L17",
       "weight": 1.0,
       "context": "parameter_type",
       "confidence_score": 1.0,
@@ -3610,12 +3946,45 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "ListrDesktop/Stores/LibraryStore.swift",
-      "source_location": "L37",
+      "source_location": "L17",
+      "weight": 1.0,
+      "context": "parameter_type",
+      "confidence_score": 1.0,
+      "source": "stores_librarystore_librarystore_init",
+      "target": "librarypersistenceservice"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "ListrDesktop/Stores/LibraryStore.swift",
+      "source_location": "L41",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "stores_librarystore_librarystore_importplaceholderbook",
+      "target": "stores_librarystore_librarystore_savelibrary"
+    },
+    {
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "source_file": "ListrDesktop/Stores/LibraryStore.swift",
+      "source_location": "L62",
       "weight": 1.0,
       "context": "parameter_type",
       "confidence_score": 1.0,
       "source": "stores_librarystore_librarystore_importbook",
       "target": "listrdesktop_stores_librarystore_swift_url"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "ListrDesktop/Stores/LibraryStore.swift",
+      "source_location": "L86",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "stores_librarystore_librarystore_importbook",
+      "target": "stores_librarystore_librarystore_savelibrary"
     },
     {
       "relation": "contains",
@@ -4128,7 +4497,144 @@
       "confidence_score": 1.0,
       "source": "views_detailview_metrictile",
       "target": "listrdesktop_views_detailview_swift_color"
+    },
+    {
+      "relation": "implements",
+      "confidence": "EXTRACTED",
+      "source_file": "ListrDesktop/Services/LibraryPersistenceService.swift",
+      "source_location": "L3",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "services_librarypersistenceservice_persistedlibrary",
+      "target": "codable"
+    },
+    {
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "source_file": "ListrDesktop/Services/BookImportService.swift",
+      "source_location": "L320",
+      "weight": 1.0,
+      "context": "return_type",
+      "confidence_score": 1.0,
+      "source": "services_bookimportservice_epubpackageparser_elementnamematches",
+      "target": "bool"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "ListrDesktop/Services/LibraryPersistenceService.swift",
+      "source_location": "L49",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "services_librarypersistenceservice",
+      "target": "services_librarypersistenceservice_jsondecoder"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "ListrDesktop/Services/LibraryPersistenceService.swift",
+      "source_location": "L40",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "services_librarypersistenceservice",
+      "target": "services_librarypersistenceservice_jsonencoder"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "ListrDesktop/Services/LibraryPersistenceService.swift",
+      "source_location": "L8",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "services_librarypersistenceservice",
+      "target": "services_librarypersistenceservice_librarypersistenceservice"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "ListrDesktop/Services/LibraryPersistenceService.swift",
+      "source_location": "L3",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "services_librarypersistenceservice",
+      "target": "services_librarypersistenceservice_persistedlibrary"
+    },
+    {
+      "relation": "references",
+      "context": "return_type",
+      "confidence": "EXTRACTED",
+      "source_file": "ListrDesktop/Services/LibraryPersistenceService.swift",
+      "source_location": "L16",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "services_librarypersistenceservice_librarypersistenceservice_load",
+      "target": "services_librarypersistenceservice_persistedlibrary"
+    },
+    {
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "source_file": "ListrDesktop/Services/LibraryPersistenceService.swift",
+      "source_location": "L25",
+      "weight": 1.0,
+      "context": "parameter_type",
+      "confidence_score": 1.0,
+      "source": "services_librarypersistenceservice_librarypersistenceservice_save",
+      "target": "services_librarypersistenceservice_persistedlibrary"
+    },
+    {
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "source_file": "ListrDesktop/Services/LibraryPersistenceService.swift",
+      "source_location": "L5",
+      "weight": 1.0,
+      "context": "field",
+      "confidence_score": 1.0,
+      "source": "services_librarypersistenceservice_persistedlibrary",
+      "target": "listrdesktop_services_librarypersistenceservice_swift_book"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "INFERRED",
+      "confidence_score": 0.8,
+      "source_file": "ListrDesktop/Stores/LibraryStore.swift",
+      "source_location": "L94",
+      "weight": 1.0,
+      "source": "stores_librarystore_librarystore_savelibrary",
+      "target": "services_librarypersistenceservice_persistedlibrary"
+    },
+    {
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "source_file": "ListrDesktop/Services/LibraryPersistenceService.swift",
+      "source_location": "L9",
+      "weight": 1.0,
+      "context": "field",
+      "confidence_score": 1.0,
+      "source": "services_librarypersistenceservice_librarypersistenceservice",
+      "target": "listrdesktop_services_librarypersistenceservice_swift_url"
+    },
+    {
+      "relation": "method",
+      "confidence": "EXTRACTED",
+      "source_file": "ListrDesktop/Services/LibraryPersistenceService.swift",
+      "source_location": "L16",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "services_librarypersistenceservice_librarypersistenceservice",
+      "target": "services_librarypersistenceservice_librarypersistenceservice_load"
+    },
+    {
+      "relation": "method",
+      "confidence": "EXTRACTED",
+      "source_file": "ListrDesktop/Services/LibraryPersistenceService.swift",
+      "source_location": "L25",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "services_librarypersistenceservice_librarypersistenceservice",
+      "target": "services_librarypersistenceservice_librarypersistenceservice_save"
     }
   ],
-  "hyperedges": []
+  "hyperedges": [],
+  "built_at_commit": "cd2d6e5e8e54e8f412ef5b4c8af563f4ea659af9"
 }

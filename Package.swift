@@ -20,5 +20,13 @@ let package = Package(
             ],
             path: "Sources/ListrDesktop"
         ),
+        .testTarget(
+            name: "ListrDesktopTests",
+            dependencies: [
+                "ListrDesktop",
+                "ZIPFoundation"
+            ],
+            path: "Tests/ListrDesktopTests"
+        ),
     ]
 )

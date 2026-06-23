@@ -1,33 +1,33 @@
 {
   "ListrDesktop/App/ListrDesktopApp.swift": {
-    "mtime": 1782225061.42911,
-    "ast_hash": "d8fe332accd4435fc60b56563b649466",
-    "semantic_hash": "d8fe332accd4435fc60b56563b649466"
+    "mtime": 1782227023.3865287,
+    "ast_hash": "efb4a23ed58f986c03c8524a3d62b899",
+    "semantic_hash": "efb4a23ed58f986c03c8524a3d62b899"
   },
   "ListrDesktop/Models/Book.swift": {
-    "mtime": 1782224828.2545044,
-    "ast_hash": "f41e877af254c488ec4906de5ea9724c",
-    "semantic_hash": "f41e877af254c488ec4906de5ea9724c"
+    "mtime": 1782227022.6464658,
+    "ast_hash": "2eaba6b74414d92616e2233dbc24b15d",
+    "semantic_hash": "2eaba6b74414d92616e2233dbc24b15d"
   },
   "ListrDesktop/Models/BookFormat.swift": {
-    "mtime": 1782224828.546281,
-    "ast_hash": "1fdcd0d8b990831dbd4698a1a5a57678",
-    "semantic_hash": "1fdcd0d8b990831dbd4698a1a5a57678"
+    "mtime": 1782227022.8885345,
+    "ast_hash": "1394c135496c101b1d0028daa479d463",
+    "semantic_hash": "1394c135496c101b1d0028daa479d463"
   },
   "ListrDesktop/Models/Chapter.swift": {
-    "mtime": 1782224828.3548954,
-    "ast_hash": "a555ac941cb6d659e1be237d4d4ab32f",
-    "semantic_hash": "a555ac941cb6d659e1be237d4d4ab32f"
+    "mtime": 1782227022.7704926,
+    "ast_hash": "ebf8cb77d3a254a194bbaf19d1a9c8b3",
+    "semantic_hash": "ebf8cb77d3a254a194bbaf19d1a9c8b3"
   },
   "ListrDesktop/Models/VoiceEngine.swift": {
-    "mtime": 1782224828.452814,
-    "ast_hash": "ae03526193f9b80209f54ca65d4c79a8",
-    "semantic_hash": "ae03526193f9b80209f54ca65d4c79a8"
+    "mtime": 1782227023.0060308,
+    "ast_hash": "1e4726762478b28be9f348b08626769f",
+    "semantic_hash": "1e4726762478b28be9f348b08626769f"
   },
   "ListrDesktop/Services/BookImportService.swift": {
-    "mtime": 1782224876.312409,
-    "ast_hash": "465552801ddb2eb61db642b85a7ef09a",
-    "semantic_hash": "465552801ddb2eb61db642b85a7ef09a"
+    "mtime": 1782227262.5287905,
+    "ast_hash": "1bca10c69ae8cf03111ce440254983c9",
+    "semantic_hash": "1bca10c69ae8cf03111ce440254983c9"
   },
   "ListrDesktop/Services/TTSService.swift": {
     "mtime": 1782223905.4403176,
@@ -40,9 +40,9 @@
     "semantic_hash": "220bac0198b7a732a8f468b01c1ec6b9"
   },
   "ListrDesktop/Stores/LibraryStore.swift": {
-    "mtime": 1782224828.7315924,
-    "ast_hash": "5bd2577040d92ed4abb155d4b83bc7bb",
-    "semantic_hash": "5bd2577040d92ed4abb155d4b83bc7bb"
+    "mtime": 1782227023.2588093,
+    "ast_hash": "1a0988c5b47b22c882eadf886f5c1769",
+    "semantic_hash": "1a0988c5b47b22c882eadf886f5c1769"
   },
   "ListrDesktop/Support/Formatting.swift": {
     "mtime": 1782223905.9958441,
@@ -50,9 +50,9 @@
     "semantic_hash": "3055b0633a66e8e06c61fb6c4d2b1b84"
   },
   "ListrDesktop/Views/ContentView.swift": {
-    "mtime": 1782224828.8257709,
-    "ast_hash": "2ebb6689ba8822ec10c59b0d28555242",
-    "semantic_hash": "2ebb6689ba8822ec10c59b0d28555242"
+    "mtime": 1782227023.4993594,
+    "ast_hash": "ee7a1e1719ce90ca60371884f243c5b2",
+    "semantic_hash": "ee7a1e1719ce90ca60371884f243c5b2"
   },
   "ListrDesktop/Views/DetailView.swift": {
     "mtime": 1782226731.4197786,
@@ -73,5 +73,10 @@
     "mtime": 1782226730.9709084,
     "ast_hash": "36660676c79e2a123b187a39aa9701f6",
     "semantic_hash": "36660676c79e2a123b187a39aa9701f6"
+  },
+  "ListrDesktop/Services/LibraryPersistenceService.swift": {
+    "mtime": 1782227023.1232512,
+    "ast_hash": "1688615987d0871bd1a2d504c91e4bbe",
+    "semantic_hash": "1688615987d0871bd1a2d504c91e4bbe"
   }
 }

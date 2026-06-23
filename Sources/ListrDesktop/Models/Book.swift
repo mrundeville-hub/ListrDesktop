@@ -1,7 +1,7 @@
 import Foundation
 
-struct Book: Identifiable, Hashable, Sendable {
-    enum Status: String, Hashable, Sendable {
+struct Book: Identifiable, Hashable, Sendable, Codable {
+    enum Status: String, Hashable, Sendable, Codable {
         case imported = "Imported"
         case queued = "Queued"
         case converting = "Converting"

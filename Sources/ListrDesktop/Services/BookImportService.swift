@@ -135,7 +135,7 @@ private final class FB2XMLDelegate: NSObject, XMLParserDelegate {
             middleName += string
         } else if pathSuffix(["description", "title-info", "author", "last-name"]) {
             lastName += string
-        } else if sectionDepth > 0, path.last == "title" {
+        } else if sectionDepth > 0, path.contains("title") {
             chapterTitle += string
         } else if sectionDepth > 0, shouldCollectBodyText {
             chapterText += string
@@ -306,15 +306,20 @@ private final class EPUBPackageParser: NSObject, XMLParserDelegate {
     }
 
     func parser(_ parser: XMLParser, foundCharacters string: String) {
-        if path.last == "title" {
+        if elementNameMatches(path.last, "title") {
             titleBuffer += string
-        } else if path.last == "creator" {
+        } else if elementNameMatches(path.last, "creator") {
             authorBuffer += string
         }
     }
 
     func parser(_ parser: XMLParser, didEndElement elementName: String, namespaceURI: String?, qualifiedName qName: String?) {
         _ = path.popLast()
+    }
+
+    private func elementNameMatches(_ value: String?, _ localName: String) -> Bool {
+        guard let value else { return false }
+        return value == localName || value.hasSuffix(":\(localName)")
     }
 }
 

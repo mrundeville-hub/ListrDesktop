@@ -1,7 +1,7 @@
 import Foundation
 import UniformTypeIdentifiers
 
-enum BookFormat: String, CaseIterable, Identifiable, Sendable {
+enum BookFormat: String, CaseIterable, Identifiable, Sendable, Codable {
     case fb2
     case epub
     case plainText

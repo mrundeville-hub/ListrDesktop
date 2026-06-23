@@ -11,6 +11,8 @@ Phase 0 foundation is in place:
 - Settings surface for narration defaults and low-load conversion controls.
 - Replaceable `TTSService` interface for system and local neural engines.
 - FB2, EPUB, and TXT file import foundation.
+- JSON library persistence in Application Support.
+- Parser and persistence tests.
 - Production plan in `docs/PRODUCTION_PLAN.md`.
 
 ## Build
@@ -33,4 +35,4 @@ script/build_and_run.sh
 
 ## Next Milestone
 
-Finish Phase 1: JSON persistence in Application Support, import progress states, and parser fixtures/tests for FB2 and EPUB edge cases.
+Finish Phase 2: system TTS chapter synthesis, a bounded conversion queue, and resumable per-chapter audio output.

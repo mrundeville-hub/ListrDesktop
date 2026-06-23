@@ -48,5 +48,16 @@ struct ContentView: View {
         } message: {
             Text(libraryStore.importError ?? "Unknown import error")
         }
+        .alert("Library storage failed", isPresented: Binding(
+            get: { libraryStore.persistenceError != nil },
+            set: { if !$0 { libraryStore.persistenceError = nil } }
+        )) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text(libraryStore.persistenceError ?? "Unknown storage error")
+        }
+        .task {
+            await libraryStore.loadPersistedLibraryIfNeeded()
+        }
     }
 }

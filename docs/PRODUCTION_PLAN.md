@@ -67,7 +67,7 @@ Phase 3 adds model management:
 - File picker for FB2, EPUB, TXT. Initial implementation exists.
 - Text extraction pipeline. Initial implementation exists for FB2 XML, EPUB OPF/spine XHTML, and TXT.
 - Chapter detection. Initial implementation exists.
-- JSON persistence in Application Support.
+- JSON persistence in Application Support. Initial implementation exists.
 - Empty, loading, failure, and imported states.
 
 ### Phase 2: Baseline Narration

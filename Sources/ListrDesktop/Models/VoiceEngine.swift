@@ -1,6 +1,6 @@
 import Foundation
 
-enum VoiceEngine: String, CaseIterable, Identifiable, Sendable {
+enum VoiceEngine: String, CaseIterable, Identifiable, Sendable, Codable {
     case system
     case neuralLocal
     case piper
