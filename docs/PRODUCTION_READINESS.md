@@ -2,42 +2,59 @@
 
 ## Current State
 
-ListrDesktop is a working native macOS SwiftUI scaffold with FB2, EPUB, and TXT import, JSON library persistence, and parser/persistence tests. The app builds successfully and has a clear service boundary for future text-to-speech engines.
+ListrDesktop is a working native macOS SwiftUI app with FB2, EPUB, and TXT import, JSON library persistence, system voice chapter export, resumable per-chapter audio files, and AVFoundation playback. The app builds through SwiftPM and has focused tests for import, persistence, conversion success, conversion failure, cancellation, and resume-position storage.
 
-## Must Finish Before Production
+## Completed Baselines
+
+1. Import
+   - FB2, EPUB, and TXT files can be imported into chapter models.
+   - Metadata extraction exists for common title and author paths.
+   - Synthetic FB2 and EPUB parser fixtures are covered by tests.
+
+2. Conversion
+   - System voice synthesis writes one audio file per chapter.
+   - Completed chapters are reused instead of regenerated.
+   - Audio files are moved into place atomically.
+   - Conversion can be cancelled and leaves the book retryable.
+   - TTS failures mark only the current chapter as failed and preserve completed audio.
+
+3. Playback
+   - AVFoundation playback loads generated chapter audio.
+   - Play, pause, seek, 15-second skip, previous/next chapter, playback speed, and resume-position storage are wired.
+   - Playback controls are scoped to the selected book so stale state does not leak across sidebar selection changes.
+
+4. Developer Run Path
+   - `script/build_and_run.sh` builds the SwiftPM product, stages a local `.app` bundle, and launches it as a foreground macOS app.
+   - The Codex Run action points at the same script.
+
+## Must Finish Before Production Release
 
 1. Import Hardening
-   - Expand parser fixtures with real-world FB2 and EPUB samples.
+   - Expand fixtures with messy real-world FB2 and EPUB samples.
    - Handle more EPUB encodings, nested paths, missing OPF metadata, and malformed XHTML.
-   - Preserve paragraph boundaries instead of flattening all text into one line.
+   - Preserve paragraph boundaries where narration quality depends on pauses.
 
-2. Conversion Pipeline
-   - Implement bounded conversion queue with cancellation.
-   - Write audio atomically per chapter.
-   - Resume without regenerating completed chapters.
-   - Add one-worker default and battery-friendly guardrails.
+2. Long-Book Validation
+   - Smoke-test full system voice export on long books.
+   - Record CPU, memory, disk usage, and cancellation behavior during multi-hour conversion.
+   - Add visible per-chapter failure details for user recovery.
 
-3. TTS Backends
-   - Start with system voice synthesis.
-   - Add local neural backend behind `TTSService` after baseline export works.
-   - Validate CPU and memory use with long books.
+3. Packaging
+   - Add app icon and bundle metadata.
+   - Decide sandbox and file-access entitlements.
+   - Build signing, notarization, and release packaging flow.
 
-4. Player
-   - AVFoundation chapter playback.
-   - Queue controls, playback speed, resume position.
-   - Later: word or phrase highlighting from timing files.
-
-5. Packaging
-   - Build an app bundle, icon, entitlements, sandbox decisions, and notarization flow.
-   - Add crash/log export for debugging user reports.
+4. Persistence Evolution
+   - Add schema versioning or migration handling before shipping to users.
+   - Consider library repair behavior for moved or deleted audio files.
 
 ## Production Risks
 
-- EPUB parsing is structurally correct and covered by a synthetic fixture, but needs coverage for messy publisher files.
-- System TTS export quality and file rendering path must be validated before neural TTS work.
-- JSON persistence exists, but no migration/versioning scheme exists yet.
-- Automated tests cover core import and persistence only.
+- EPUB parsing is structurally correct for the test fixture but needs coverage against publisher-specific files.
+- System TTS export works through the app boundary, but long-book runtime and output quality still need real usage evidence.
+- JSON persistence has no explicit migration story yet.
+- Word timing generation is still a planned control, not an implemented timing backend.
 
 ## Recommended Next Sprint
 
-Implement system TTS chapter export plus a resumable conversion queue. That turns imported books into usable audio output.
+Run a real-book hardening sprint: import several representative books, convert one long title end-to-end with system voices, verify playback/resume behavior manually, then package the app with signing and entitlements.

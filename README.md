@@ -4,7 +4,7 @@ Native macOS desktop app for converting books into local narrated audio.
 
 ## Current State
 
-Phase 0 foundation is in place:
+Phase 3 listening loop baseline is in place:
 
 - SwiftPM macOS app scaffold.
 - SwiftUI `NavigationSplitView` library/detail layout.
@@ -12,7 +12,10 @@ Phase 0 foundation is in place:
 - Replaceable `TTSService` interface for system and local neural engines.
 - FB2, EPUB, and TXT file import foundation.
 - JSON library persistence in Application Support.
-- Parser and persistence tests.
+- System voice chapter export with resumable per-chapter audio files.
+- One-book conversion flow with cancel/error handling.
+- AVFoundation chapter playback with seek, skip, playback speed, and resume position.
+- Parser, persistence, conversion, cancellation, failure, and resume-position tests.
 - Production plan in `docs/PRODUCTION_PLAN.md`.
 
 ## Build
@@ -27,7 +30,7 @@ swift build
 swift run ListrDesktop
 ```
 
-or use:
+For the normal macOS app launch path, use:
 
 ```bash
 script/build_and_run.sh
@@ -35,4 +38,4 @@ script/build_and_run.sh
 
 ## Next Milestone
 
-Finish Phase 2: system TTS chapter synthesis, a bounded conversion queue, and resumable per-chapter audio output.
+Production hardening: real-book import fixtures, long-book system TTS smoke tests, packaging/signing decisions, and notarization.

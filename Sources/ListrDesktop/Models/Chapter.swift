@@ -15,6 +15,7 @@ struct Chapter: Identifiable, Hashable, Sendable, Codable {
     var status: Status
     var audioPath: String?
     var timingPath: String?
+    var resumePosition: TimeInterval? = nil
 
     var wordCount: Int {
         text.split { $0.isWhitespace || $0.isNewline }.count
