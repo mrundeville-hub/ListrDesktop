@@ -5,6 +5,8 @@ MODE="${1:-run}"
 APP_NAME="ListrDesktop"
 BUNDLE_ID="dev.listr.desktop"
 MIN_SYSTEM_VERSION="14.0"
+APP_VERSION="1.0.0"
+BUILD_NUMBER="1"
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 DIST_DIR="$ROOT_DIR/dist"
@@ -37,6 +39,10 @@ cat >"$INFO_PLIST" <<PLIST
   <string>$APP_NAME</string>
   <key>CFBundlePackageType</key>
   <string>APPL</string>
+  <key>CFBundleShortVersionString</key>
+  <string>$APP_VERSION</string>
+  <key>CFBundleVersion</key>
+  <string>$BUILD_NUMBER</string>
   <key>LSMinimumSystemVersion</key>
   <string>$MIN_SYSTEM_VERSION</string>
   <key>NSPrincipalClass</key>
@@ -44,6 +50,9 @@ cat >"$INFO_PLIST" <<PLIST
 </dict>
 </plist>
 PLIST
+
+# ponytail: ad-hoc signing (-s -); swap in a Developer ID + notarization for distribution
+codesign --force -s - --entitlements "$ROOT_DIR/ListrDesktop.entitlements" "$APP_BUNDLE"
 
 open_app() {
   /usr/bin/open -n "$APP_BUNDLE"
@@ -66,11 +75,21 @@ case "$MODE" in
     ;;
   --verify|verify)
     open_app
-    sleep 1
-    pgrep -x "$APP_NAME" >/dev/null
+    for _ in {1..20}; do
+      if pgrep -x "$APP_NAME" >/dev/null; then
+        exit 0
+      fi
+      sleep 0.25
+    done
+    echo "$APP_NAME did not start" >&2
+    exit 1
+    ;;
+  --dmg|dmg)
+    # ponytail: bare hdiutil, no fancy DMG layout
+    hdiutil create -volname "$APP_NAME" -srcfolder "$APP_BUNDLE" -ov -format UDZO "$DIST_DIR/$APP_NAME.dmg"
     ;;
   *)
-    echo "usage: $0 [run|--debug|--logs|--telemetry|--verify]" >&2
+    echo "usage: $0 [run|--debug|--logs|--telemetry|--verify|--dmg]" >&2
     exit 2
     ;;
 esac
