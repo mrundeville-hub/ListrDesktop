@@ -44,7 +44,12 @@ final class LibraryStore {
 
     var canConvertSelectedBook: Bool {
         guard !isConverting, let selectedBook else { return false }
-        return selectedBook.chapters.contains { !isChapterReady($0) }
+        return selectedBook.chapters.contains { !$0.isReady }
+    }
+
+    var canRegenerateSelectedBook: Bool {
+        guard !isConverting, let selectedBook else { return false }
+        return selectedBook.chapters.contains { $0.audioPath != nil || $0.timingPath != nil || $0.status == .ready }
     }
 
     func importPlaceholderBook() {
@@ -74,8 +79,14 @@ final class LibraryStore {
             let persisted = try await Task.detached(priority: .userInitiated) {
                 try persistence.load()
             }.value
-            books = persisted.books
-            selectedBookID = persisted.selectedBookID ?? persisted.books.first?.id
+            books = repairPersistedBooks(persisted.books)
+            selectedBookID = persisted.selectedBookID.flatMap { selectedID in
+                books.contains { $0.id == selectedID } ? selectedID : nil
+            } ?? books.first?.id
+
+            if persisted.schemaVersion < PersistedLibrary.currentSchemaVersion || books != persisted.books {
+                saveLibrary()
+            }
         } catch {
             persistenceError = error.localizedDescription
         }
@@ -111,7 +122,7 @@ final class LibraryStore {
     }
 
     @discardableResult
-    func convertSelectedBook(using engine: VoiceEngine) -> Task<Void, Never>? {
+    func convertSelectedBook(configuration: TTSConfiguration) -> Task<Void, Never>? {
         guard conversionTask == nil, let selectedBookID else { return nil }
         conversionError = nil
         convertingBookID = selectedBookID
@@ -121,7 +132,7 @@ final class LibraryStore {
                 self.conversionTask = nil
                 self.convertingBookID = nil
             }
-            await self.convertBook(id: selectedBookID, using: engine)
+            await self.convertBook(id: selectedBookID, configuration: configuration)
         }
         return conversionTask
     }
@@ -139,6 +150,52 @@ final class LibraryStore {
         markConversionCancelled(forBookAt: bookIndex)
     }
 
+    @discardableResult
+    func regenerateSelectedBook(configuration: TTSConfiguration) -> Task<Void, Never>? {
+        guard
+            conversionTask == nil,
+            let selectedBookID,
+            let bookIndex = books.firstIndex(where: { $0.id == selectedBookID })
+        else {
+            return nil
+        }
+
+        for chapterIndex in books[bookIndex].chapters.indices {
+            removeGeneratedFiles(for: books[bookIndex].chapters[chapterIndex])
+            books[bookIndex].chapters[chapterIndex].audioPath = nil
+            books[bookIndex].chapters[chapterIndex].timingPath = nil
+            books[bookIndex].chapters[chapterIndex].lastError = nil
+            books[bookIndex].chapters[chapterIndex].resumePosition = nil
+            books[bookIndex].chapters[chapterIndex].status = .pending
+        }
+
+        books[bookIndex].duration = 0
+        updateBookStatus(at: bookIndex)
+        saveLibrary()
+
+        return convertSelectedBook(configuration: configuration)
+    }
+
+    /// Removes the book and its generated audio. The imported source file is never touched.
+    func removeBook(id: Book.ID) {
+        guard let bookIndex = books.firstIndex(where: { $0.id == id }) else { return }
+
+        if convertingBookID == id {
+            cancelConversion()
+        }
+
+        let book = books.remove(at: bookIndex)
+        for chapter in book.chapters {
+            removeGeneratedFiles(for: chapter)
+        }
+        try? FileManager.default.removeItem(at: audioRootURL.appendingPathComponent(id.uuidString))
+
+        if selectedBookID == id {
+            selectedBookID = books.first?.id
+        }
+        saveLibrary()
+    }
+
     func updatePlaybackPosition(bookID: Book.ID, chapterID: Chapter.ID, position: TimeInterval) {
         guard
             let bookIndex = books.firstIndex(where: { $0.id == bookID }),
@@ -151,7 +208,7 @@ final class LibraryStore {
         saveLibrary()
     }
 
-    private func convertBook(id bookID: Book.ID, using engine: VoiceEngine) async {
+    private func convertBook(id bookID: Book.ID, configuration: TTSConfiguration) async {
         guard let initialBookIndex = books.firstIndex(where: { $0.id == bookID }) else { return }
 
         books[initialBookIndex].status = .queued
@@ -169,6 +226,7 @@ final class LibraryStore {
 
             books[bookIndex].status = .converting
             books[bookIndex].chapters[chapterIndex].status = .converting
+            books[bookIndex].chapters[chapterIndex].lastError = nil
             updateBookProgress(at: bookIndex)
             saveLibrary()
 
@@ -176,9 +234,15 @@ final class LibraryStore {
             var temporaryURL: URL?
 
             do {
-                let finalURL = try chapterAudioURL(bookID: bookID, chapter: chapter)
+                let finalURL = try chapterAudioURL(bookID: bookID, chapter: chapter, engine: configuration.engine)
                 if FileManager.default.fileExists(atPath: finalURL.path) {
                     books[bookIndex].chapters[chapterIndex].audioPath = finalURL.path
+                    books[bookIndex].chapters[chapterIndex].timingPath = try ensureTimingFile(
+                        bookID: bookID,
+                        chapter: books[bookIndex].chapters[chapterIndex],
+                        audioURL: finalURL
+                    ).path
+                    books[bookIndex].chapters[chapterIndex].lastError = nil
                     books[bookIndex].chapters[chapterIndex].status = .ready
                     updateBookStatus(at: bookIndex)
                     updateBookDuration(at: bookIndex)
@@ -191,7 +255,7 @@ final class LibraryStore {
                     .appendingPathComponent(".\(finalURL.lastPathComponent).tmp.aiff")
                 let synthesizedURL = try await ttsService.synthesize(
                     chapterText: chapter.text,
-                    using: engine,
+                    configuration: configuration,
                     to: temporaryURL!
                 )
 
@@ -203,6 +267,12 @@ final class LibraryStore {
 
                 try moveAtomically(from: synthesizedURL, to: finalURL)
                 books[bookIndex].chapters[chapterIndex].audioPath = finalURL.path
+                books[bookIndex].chapters[chapterIndex].timingPath = try ensureTimingFile(
+                    bookID: bookID,
+                    chapter: books[bookIndex].chapters[chapterIndex],
+                    audioURL: finalURL
+                ).path
+                books[bookIndex].chapters[chapterIndex].lastError = nil
                 books[bookIndex].chapters[chapterIndex].status = .ready
                 updateBookStatus(at: bookIndex)
                 updateBookDuration(at: bookIndex)
@@ -215,6 +285,7 @@ final class LibraryStore {
                 return
             } catch {
                 books[bookIndex].chapters[chapterIndex].status = .failed
+                books[bookIndex].chapters[chapterIndex].lastError = error.localizedDescription
                 books[bookIndex].status = .failed
                 conversionError = error.localizedDescription
                 updateBookProgress(at: bookIndex)
@@ -232,7 +303,7 @@ final class LibraryStore {
 
     private func nextConvertibleChapterIndex(forBookAt bookIndex: Int) -> Int? {
         books[bookIndex].chapters.firstIndex { chapter in
-            !isChapterReady(chapter)
+            !chapter.isReady
         }
     }
 
@@ -242,7 +313,7 @@ final class LibraryStore {
 
         if chapters.isEmpty {
             books[bookIndex].status = .imported
-        } else if chapters.allSatisfy({ isChapterReady($0) }) {
+        } else if chapters.allSatisfy(\.isReady) {
             books[bookIndex].status = .ready
         } else if chapters.contains(where: { $0.status == .failed }) {
             books[bookIndex].status = .failed
@@ -262,13 +333,13 @@ final class LibraryStore {
             return
         }
 
-        let readyCount = chapters.filter { isChapterReady($0) }.count
+        let readyCount = chapters.filter(\.isReady).count
         books[bookIndex].progress = Double(readyCount) / Double(chapters.count)
     }
 
     private func updateBookDuration(at bookIndex: Int) {
         books[bookIndex].duration = books[bookIndex].chapters.reduce(0) { total, chapter in
-            guard isChapterReady(chapter), let audioPath = chapter.audioPath else { return total }
+            guard chapter.isReady, let audioPath = chapter.audioPath else { return total }
             return total + audioDuration(at: URL(fileURLWithPath: audioPath))
         }
     }
@@ -282,18 +353,87 @@ final class LibraryStore {
         saveLibrary()
     }
 
-    private func isChapterReady(_ chapter: Chapter) -> Bool {
-        guard chapter.status == .ready, let audioPath = chapter.audioPath else {
-            return false
+    private func repairPersistedBooks(_ persistedBooks: [Book]) -> [Book] {
+        persistedBooks.map { book in
+            var repairedBook = book
+            repairedBook.chapterCount = repairedBook.chapters.count
+
+            for chapterIndex in repairedBook.chapters.indices {
+                let chapter = repairedBook.chapters[chapterIndex]
+                let audioExists = chapter.audioPath.map { FileManager.default.fileExists(atPath: $0) } ?? false
+                let timingExists = chapter.timingPath.map { FileManager.default.fileExists(atPath: $0) } ?? false
+
+                if !audioExists {
+                    repairedBook.chapters[chapterIndex].audioPath = nil
+                    repairedBook.chapters[chapterIndex].timingPath = nil
+                    repairedBook.chapters[chapterIndex].resumePosition = nil
+                    repairedBook.chapters[chapterIndex].status = chapter.status == .failed ? .failed : .pending
+
+                    if chapter.status == .ready {
+                        repairedBook.chapters[chapterIndex].lastError = "Generated audio file is missing. Convert this chapter again."
+                    }
+                } else if chapter.timingPath != nil, !timingExists {
+                    repairedBook.chapters[chapterIndex].timingPath = nil
+                }
+            }
+
+            updateDerivedFields(for: &repairedBook)
+            return repairedBook
         }
-        return FileManager.default.fileExists(atPath: audioPath)
     }
 
-    private func chapterAudioURL(bookID: Book.ID, chapter: Chapter) throws -> URL {
+    private func updateDerivedFields(for book: inout Book) {
+        let chapters = book.chapters
+        guard !chapters.isEmpty else {
+            book.status = .imported
+            book.progress = 0
+            book.duration = 0
+            return
+        }
+
+        let readyCount = chapters.filter(\.isReady).count
+        book.progress = Double(readyCount) / Double(chapters.count)
+        book.duration = chapters.reduce(0) { total, chapter in
+            guard chapter.isReady, let audioPath = chapter.audioPath else { return total }
+            return total + audioDuration(at: URL(fileURLWithPath: audioPath))
+        }
+
+        if chapters.allSatisfy(\.isReady) {
+            book.status = .ready
+        } else if chapters.contains(where: { $0.status == .failed }) {
+            book.status = .failed
+        } else if chapters.contains(where: { $0.status == .converting }) {
+            book.status = .queued
+        } else if readyCount > 0 {
+            book.status = .queued
+        } else {
+            book.status = .imported
+        }
+    }
+
+    private func removeGeneratedFiles(for chapter: Chapter) {
+        if let audioPath = chapter.audioPath {
+            try? FileManager.default.removeItem(atPath: audioPath)
+        }
+        if let timingPath = chapter.timingPath {
+            try? FileManager.default.removeItem(atPath: timingPath)
+        }
+    }
+
+    private func chapterAudioURL(bookID: Book.ID, chapter: Chapter, engine: VoiceEngine) throws -> URL {
         let baseURL = audioRootURL.appendingPathComponent(bookID.uuidString)
         try FileManager.default.createDirectory(at: baseURL, withIntermediateDirectories: true)
 
-        let filename = String(format: "%03d-%@.aiff", chapter.index, safeFileName(chapter.title))
+        let fileExtension = engine == .piper ? "wav" : "aiff"
+        let filename = String(format: "%03d-%@.%@", chapter.index, safeFileName(chapter.title), fileExtension)
+        return baseURL.appendingPathComponent(filename)
+    }
+
+    private func chapterTimingURL(bookID: Book.ID, chapter: Chapter) throws -> URL {
+        let baseURL = audioRootURL.appendingPathComponent(bookID.uuidString)
+        try FileManager.default.createDirectory(at: baseURL, withIntermediateDirectories: true)
+
+        let filename = String(format: "%03d-%@.timing.json", chapter.index, safeFileName(chapter.title))
         return baseURL.appendingPathComponent(filename)
     }
 
@@ -313,6 +453,21 @@ final class LibraryStore {
         try FileManager.default.moveItem(at: sourceURL, to: replacementURL)
         try? FileManager.default.removeItem(at: destinationURL)
         try FileManager.default.moveItem(at: replacementURL, to: destinationURL)
+    }
+
+    private func ensureTimingFile(bookID: Book.ID, chapter: Chapter, audioURL: URL) throws -> URL {
+        if let timingPath = chapter.timingPath, FileManager.default.fileExists(atPath: timingPath) {
+            return URL(fileURLWithPath: timingPath)
+        }
+
+        let timingURL = try chapterTimingURL(bookID: bookID, chapter: chapter)
+        let timing = ChapterTimingBuilder.build(
+            text: chapter.text,
+            duration: audioDuration(at: audioURL)
+        )
+        let data = try JSONEncoder.listrTiming.encode(timing)
+        try data.write(to: timingURL, options: .atomic)
+        return timingURL
     }
 
     private func audioDuration(at url: URL) -> TimeInterval {
@@ -344,4 +499,12 @@ final class LibraryStore {
         ],
         persistence: nil
     )
+}
+
+private extension JSONEncoder {
+    static var listrTiming: JSONEncoder {
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+        return encoder
+    }
 }

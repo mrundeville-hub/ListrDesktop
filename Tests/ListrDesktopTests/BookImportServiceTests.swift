@@ -37,6 +37,22 @@ struct BookImportServiceTests {
         #expect(book.chapters[0].text.contains("The first EPUB chapter"))
         #expect(book.chapters[1].text.contains("The final EPUB chapter"))
     }
+
+    @Test("imports EPUB chapters with nested paths, anchors, and declared encoding")
+    func importsMessyEPUBPathsAndEncoding() throws {
+        let directory = try TemporaryDirectory()
+        let url = directory.url.appending(path: "messy.epub")
+        try makeMessyEPUB(at: url)
+
+        let book = try BookImportService().importBook(from: url)
+
+        #expect(book.format == .epub)
+        #expect(book.title == "Messy EPUB")
+        #expect(book.author == "Unknown author")
+        #expect(book.chapters.map(\.title) == ["Вступление"])
+        #expect(book.chapters[0].text.contains("Привет мир"))
+        #expect(book.chapters[0].text.contains("©"))
+    }
 }
 
 private let fb2Fixture = """
@@ -99,9 +115,49 @@ private func makeEPUB(at url: URL) throws {
     """)
 }
 
+private func makeMessyEPUB(at url: URL) throws {
+    let archive = try Archive(url: url, accessMode: .create)
+
+    try archive.addData("mimetype", "application/epub+zip")
+    try archive.addData("META-INF/container.xml", """
+    <?xml version="1.0"?>
+    <container version="1.0" xmlns="urn:oasis:names:tc:opendocument:xmlns:container">
+      <rootfiles>
+        <rootfile full-path="OPS/package/content.opf" media-type="application/oebps-package+xml"/>
+      </rootfiles>
+    </container>
+    """)
+    try archive.addData("OPS/package/content.opf", """
+    <?xml version="1.0" encoding="UTF-8"?>
+    <package xmlns="http://www.idpf.org/2007/opf" version="3.0">
+      <metadata xmlns:dc="http://purl.org/dc/elements/1.1/">
+        <dc:title>Messy EPUB</dc:title>
+      </metadata>
+      <manifest>
+        <item id="chapter1" href="../Text/chapter%201.xhtml#body" media-type="application/xhtml+xml"/>
+      </manifest>
+      <spine>
+        <itemref idref="chapter1"/>
+      </spine>
+    </package>
+    """)
+
+    let chapter = """
+    <html><head><meta charset="windows-1251"></head><body><h1>Вступление</h1><p>Привет мир &#169;</p></body></html>
+    """
+    try archive.addData(
+        "OPS/Text/chapter 1.xhtml",
+        chapter.data(using: .windowsCP1251)!
+    )
+}
+
 private extension Archive {
     func addData(_ path: String, _ string: String) throws {
         let data = Data(string.utf8)
+        try addData(path, data)
+    }
+
+    func addData(_ path: String, _ data: Data) throws {
         try addEntry(
             with: path,
             type: .file,

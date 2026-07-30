@@ -2,43 +2,28 @@ import SwiftUI
 
 struct ContentView: View {
     @Environment(LibraryStore.self) private var libraryStore
-    @Environment(ConversionStore.self) private var conversionStore
     @Environment(PlaybackStore.self) private var playbackStore
     @State private var isImporterPresented = false
 
     var body: some View {
         @Bindable var libraryStore = libraryStore
 
-        NavigationSplitView {
-            SidebarView(selection: $libraryStore.selectedBookID)
-        } detail: {
-            DetailView(book: libraryStore.selectedBook)
-        }
-        .toolbar {
-            ToolbarItemGroup {
-                Button {
-                    isImporterPresented = true
-                } label: {
-                    Label("Import", systemImage: "square.and.arrow.down")
-                }
-                .disabled(libraryStore.isImporting)
+        ZStack {
+            ListrTheme.paper.ignoresSafeArea()
 
-                if libraryStore.isConverting {
-                    Button {
-                        libraryStore.cancelConversion()
-                    } label: {
-                        Label("Cancel", systemImage: "stop.fill")
-                    }
-                } else {
-                    Button {
-                        libraryStore.convertSelectedBook(using: conversionStore.selectedEngine)
-                    } label: {
-                        Label("Convert", systemImage: "waveform")
-                    }
-                    .disabled(!libraryStore.canConvertSelectedBook)
+            HStack(alignment: .top, spacing: 20) {
+                SidebarView(selection: $libraryStore.selectedBookID) {
+                    isImporterPresented = true
                 }
+                .frame(width: 280)
+
+                DetailView(book: libraryStore.selectedBook)
             }
+            .padding(.horizontal, 20)
+            .padding(.top, 44) // clears the traffic lights
+            .padding(.bottom, 20)
         }
+        .tint(ListrTheme.ink)
         .fileImporter(
             isPresented: $isImporterPresented,
             allowedContentTypes: BookFormat.supportedTypes,

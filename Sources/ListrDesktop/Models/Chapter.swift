@@ -15,9 +15,16 @@ struct Chapter: Identifiable, Hashable, Sendable, Codable {
     var status: Status
     var audioPath: String?
     var timingPath: String?
+    var lastError: String? = nil
     var resumePosition: TimeInterval? = nil
 
     var wordCount: Int {
         text.split { $0.isWhitespace || $0.isNewline }.count
+    }
+
+    /// Ready to play: marked ready *and* the generated file still exists on disk.
+    var isReady: Bool {
+        guard status == .ready, let audioPath else { return false }
+        return FileManager.default.fileExists(atPath: audioPath)
     }
 }

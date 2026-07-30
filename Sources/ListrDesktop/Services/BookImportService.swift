@@ -202,7 +202,7 @@ private struct EPUBBookParser {
             guard let href = package.manifest[itemID] else { continue }
             let chapterPath = normalizedEPUBPath(basePath: basePath, href: href)
             guard let chapterData = try? data(named: chapterPath, in: archive),
-                  let html = String(data: chapterData, encoding: .utf8) ?? String(data: chapterData, encoding: .windowsCP1251) else {
+                  let html = TextCleaner.decodeHTML(chapterData) else {
                 continue
             }
             let text = TextCleaner.htmlToText(html)
@@ -242,8 +242,29 @@ private struct EPUBBookParser {
 
     private func normalizedEPUBPath(basePath: String, href: String) -> String {
         let normalizedBase = basePath == "." ? "" : basePath
-        let combined = normalizedBase.isEmpty ? href : "\(normalizedBase)/\(href)"
-        return combined.removingPercentEncoding ?? combined
+        let hrefWithoutAnchor = href
+            .split(separator: "#", maxSplits: 1, omittingEmptySubsequences: false)[0]
+            .split(separator: "?", maxSplits: 1, omittingEmptySubsequences: false)[0]
+        let combined = normalizedBase.isEmpty ? String(hrefWithoutAnchor) : "\(normalizedBase)/\(hrefWithoutAnchor)"
+        let decoded = combined.removingPercentEncoding ?? combined
+        return normalizePathSegments(decoded)
+    }
+
+    private func normalizePathSegments(_ path: String) -> String {
+        var result: [String] = []
+        for segment in path.split(separator: "/", omittingEmptySubsequences: false).map(String.init) {
+            switch segment {
+            case "", ".":
+                continue
+            case "..":
+                if !result.isEmpty {
+                    result.removeLast()
+                }
+            default:
+                result.append(segment)
+            }
+        }
+        return result.joined(separator: "/")
     }
 }
 
@@ -343,6 +364,18 @@ private enum ChapterSplitter {
 }
 
 private enum TextCleaner {
+    static func decodeHTML(_ data: Data) -> String? {
+        if let declaredEncoding = declaredHTMLEncoding(in: data),
+           let decoded = String(data: data, encoding: declaredEncoding) {
+            return decoded
+        }
+
+        return String(data: data, encoding: .utf8)
+            ?? String(data: data, encoding: .utf16)
+            ?? String(data: data, encoding: .windowsCP1251)
+            ?? String(data: data, encoding: .isoLatin1)
+    }
+
     static func clean(_ value: String) -> String {
         value
             .replacingOccurrences(of: "\u{00a0}", with: " ")
@@ -376,12 +409,69 @@ private enum TextCleaner {
     }
 
     private static func decodeEntities(_ value: String) -> String {
-        value
+        var decoded = value
             .replacingOccurrences(of: "&nbsp;", with: " ")
             .replacingOccurrences(of: "&amp;", with: "&")
             .replacingOccurrences(of: "&lt;", with: "<")
             .replacingOccurrences(of: "&gt;", with: ">")
             .replacingOccurrences(of: "&quot;", with: "\"")
             .replacingOccurrences(of: "&#39;", with: "'")
+        decoded = replaceNumericEntities(in: decoded)
+        return decoded
+    }
+
+    private static func replaceNumericEntities(in value: String) -> String {
+        guard let regex = try? NSRegularExpression(pattern: #"&#(\d+);"#) else {
+            return value
+        }
+
+        let nsValue = value as NSString
+        let matches = regex.matches(in: value, range: NSRange(location: 0, length: nsValue.length))
+        var result = value
+        for match in matches.reversed() {
+            let codePointText = nsValue.substring(with: match.range(at: 1))
+            guard
+                let codePoint = Int(codePointText),
+                let scalar = UnicodeScalar(codePoint),
+                let range = Range(match.range, in: result)
+            else {
+                continue
+            }
+            result.replaceSubrange(range, with: String(scalar))
+        }
+        return result
+    }
+
+    private static func declaredHTMLEncoding(in data: Data) -> String.Encoding? {
+        guard
+            let prefix = String(data: data.prefix(4096), encoding: .isoLatin1),
+            let regex = try? NSRegularExpression(
+                pattern: #"charset\s*=\s*["']?([A-Za-z0-9._-]+)"#,
+                options: [.caseInsensitive]
+            )
+        else {
+            return nil
+        }
+
+        let range = NSRange(prefix.startIndex..<prefix.endIndex, in: prefix)
+        guard
+            let match = regex.firstMatch(in: prefix, range: range),
+            let encodingRange = Range(match.range(at: 1), in: prefix)
+        else {
+            return nil
+        }
+
+        switch prefix[encodingRange].lowercased() {
+        case "utf-8", "utf8":
+            return .utf8
+        case "utf-16", "utf16":
+            return .utf16
+        case "windows-1251", "cp1251":
+            return .windowsCP1251
+        case "iso-8859-1", "latin1":
+            return .isoLatin1
+        default:
+            return nil
+        }
     }
 }

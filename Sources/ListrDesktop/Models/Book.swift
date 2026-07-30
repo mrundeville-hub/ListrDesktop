@@ -25,4 +25,22 @@ struct Book: Identifiable, Hashable, Sendable, Codable {
         let minutes = (Int(duration) % 3600) / 60
         return hours > 0 ? "\(hours)h \(minutes)m" : "\(minutes)m"
     }
+
+    var playableChapters: [Chapter] {
+        chapters.filter(\.isReady)
+    }
+
+    func chapter(after chapterID: Chapter.ID) -> Chapter? {
+        let playable = playableChapters
+        guard let index = playable.firstIndex(where: { $0.id == chapterID }), index + 1 < playable.count else {
+            return nil
+        }
+        return playable[index + 1]
+    }
+
+    func chapter(before chapterID: Chapter.ID) -> Chapter? {
+        let playable = playableChapters
+        guard let index = playable.firstIndex(where: { $0.id == chapterID }), index > 0 else { return nil }
+        return playable[index - 1]
+    }
 }

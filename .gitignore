@@ -7,3 +7,6 @@ DerivedData/
 .swiftpm/xcode/package.xcworkspace/contents.xcworkspacedata
 .netrc
 Sources/graphify-out/cache/
+/.tools/
+/graphify-out/
+/dist/

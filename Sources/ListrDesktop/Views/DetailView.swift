@@ -2,30 +2,13 @@ import SwiftUI
 
 struct DetailView: View {
     @Environment(LibraryStore.self) private var libraryStore
-    @Environment(ConversionStore.self) private var conversionStore
     @Environment(PlaybackStore.self) private var playbackStore
 
     let book: Book?
 
     var body: some View {
         if let book {
-            ScrollView {
-                VStack(alignment: .leading, spacing: 22) {
-                    HeroBookPanel(book: book)
-                    PlayerPanel(book: book)
-                    HStack(alignment: .top, spacing: 18) {
-                        ConversionPanel()
-                            .frame(minWidth: 420, maxWidth: 520)
-                        QueuePanel(book: book)
-                            .frame(minWidth: 360)
-                    }
-                    ChapterPanel(book: book)
-                }
-                .padding(28)
-                .frame(maxWidth: 1160, alignment: .leading)
-            }
-            .background(Color(nsColor: .textBackgroundColor).opacity(0.72))
-            .navigationTitle(book.title)
+            FullscreenReadingWorkspace(book: book)
             .onChange(of: playbackStore.elapsed) { _, elapsed in
                 guard
                     playbackStore.currentBookID == book.id,
@@ -37,188 +20,384 @@ struct DetailView: View {
             }
         } else {
             EmptyLibraryView()
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
     }
 }
 
-private struct EmptyLibraryView: View {
-    var body: some View {
-        VStack(alignment: .leading, spacing: 22) {
-            Text("Drop a book into sound")
-                .font(.system(size: 48, weight: .bold, design: ListrTheme.serif))
-            Text("Import FB2, EPUB, or TXT files and prepare chapters for local narration.")
-                .font(.system(.title3, design: ListrTheme.mono))
-                .foregroundStyle(.secondary)
-        }
-        .padding(42)
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-    }
-}
-
-private struct HeroBookPanel: View {
-    let book: Book
-
-    var body: some View {
-        HStack(spacing: 0) {
-            VStack(alignment: .leading, spacing: 18) {
-                Text(book.author)
-                    .font(.system(.caption, design: ListrTheme.mono).weight(.bold))
-                    .textCase(.uppercase)
-                    .foregroundStyle(.secondary)
-
-                Text(book.title)
-                    .font(.system(size: 46, weight: .bold, design: ListrTheme.mono))
-                    .lineLimit(3)
-                    .minimumScaleFactor(0.72)
-
-                HStack(spacing: 24) {
-                    Stat(label: "Chapters", value: "\(book.chapterCount)")
-                    Stat(label: "Words", value: "\(book.chapters.reduce(0) { $0 + $1.wordCount })")
-                    Stat(label: "Status", value: book.status.rawValue)
-                    Stat(label: "Duration", value: book.durationLabel)
-                }
-            }
-            .padding(26)
-
-            Spacer()
-        }
-        .background(ListrTheme.softMint, in: RoundedRectangle(cornerRadius: 8))
-    }
-}
-
-private struct PlayerPanel: View {
-    @Environment(ConversionStore.self) private var conversionStore
+private struct FullscreenReadingWorkspace: View {
     @Environment(PlaybackStore.self) private var playbackStore
 
     let book: Book
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            HStack(alignment: .firstTextBaseline) {
-                VStack(alignment: .leading, spacing: 6) {
-                    Text("player")
-                        .font(.system(.title2, design: ListrTheme.mono).weight(.bold))
-                    Text(currentSubtitle)
-                        .font(.system(.caption, design: ListrTheme.mono))
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
-                }
+        HStack(alignment: .top, spacing: 20) {
+            VStack(spacing: 20) {
+                ReaderCanvasPanel(book: book)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+
+                FloatingReadingControls(book: book)
+            }
+
+            FindingsRail(book: book)
+                .frame(width: 300)
+                .frame(maxHeight: .infinity)
+        }
+    }
+}
+
+private struct ReaderCanvasPanel: View {
+    @Environment(PlaybackStore.self) private var playbackStore
+
+    let book: Book
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            HStack(spacing: 10) {
+                ListrChip(
+                    text: "Now reading",
+                    icon: "text.book.closed.fill",
+                    fill: ListrTheme.accentWash,
+                    tint: ListrTheme.accent
+                )
+
+                Text(book.title)
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundStyle(ListrTheme.mutedLabel)
+                    .lineLimit(1)
 
                 Spacer()
 
-                HStack(spacing: 8) {
-                    Button {
-                        playPrevious()
-                    } label: {
-                        Image(systemName: "backward.end.fill")
-                    }
-                    .disabled(previousChapter == nil)
-                    .help("Previous chapter")
+                ListrChip(text: "\(Int(playbackStore.progress * 100))%", icon: "chart.pie.fill")
+            }
+            .padding(.horizontal, 30)
+            .padding(.top, 24)
 
-                    Button {
-                        playbackStore.skip(seconds: -15)
-                    } label: {
-                        Image(systemName: "gobackward.15")
-                    }
-                    .disabled(!isCurrentBookLoaded)
-                    .help("Back 15 seconds")
-
-                    Button {
-                        if isCurrentBookLoaded {
-                            playbackStore.togglePlayPause()
-                        } else if let chapter = firstPlayableChapter {
-                            playbackStore.play(bookID: book.id, chapter: chapter, speed: conversionStore.speed)
-                        }
-                    } label: {
-                        Image(systemName: isCurrentBookLoaded && playbackStore.isPlaying ? "pause.fill" : "play.fill")
-                    }
-                    .keyboardShortcut(.space, modifiers: [])
-                    .disabled(firstPlayableChapter == nil && !isCurrentBookLoaded)
-                    .help(isCurrentBookLoaded && playbackStore.isPlaying ? "Pause" : "Play")
-
-                    Button {
-                        playbackStore.skip(seconds: 15)
-                    } label: {
-                        Image(systemName: "goforward.15")
-                    }
-                    .disabled(!isCurrentBookLoaded)
-                    .help("Forward 15 seconds")
-
-                    Button {
-                        playNext()
-                    } label: {
-                        Image(systemName: "forward.end.fill")
-                    }
-                    .disabled(nextChapter == nil)
-                    .help("Next chapter")
+            ScrollViewReader { proxy in
+                ScrollView {
+                    Text(highlightedPassage)
+                        .font(.system(size: 26, weight: .regular))
+                        .lineSpacing(11)
+                        .textSelection(.enabled)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .id("reader-text")
+                        .padding(.horizontal, 30)
+                        .padding(.top, 26)
+                        .padding(.bottom, 40)
                 }
-                .buttonStyle(.bordered)
-                .controlSize(.large)
+                .onChange(of: playbackStore.currentWord?.index) { _, _ in
+                    withAnimation(.smooth(duration: 0.28)) {
+                        proxy.scrollTo("reader-text", anchor: .center)
+                    }
+                }
+            }
+        }
+        .listrCard()
+    }
+
+    private var highlightedPassage: AttributedString {
+        guard !playbackStore.currentText.isEmpty else {
+            var empty = AttributedString("Convert a chapter, press play, and the spoken words will appear here.")
+            empty.foregroundColor = ListrTheme.mutedLabel
+            return empty
+        }
+
+        guard
+            let word = playbackStore.currentWord,
+            let stringRange = Range(NSRange(location: word.location, length: word.length), in: playbackStore.currentText)
+        else {
+            var preview = AttributedString(compactPreview(playbackStore.currentText))
+            preview.foregroundColor = ListrTheme.ink.opacity(0.55)
+            return preview
+        }
+
+        let source = playbackStore.currentText
+        let snippetStart = source.index(stringRange.lowerBound, offsetBy: -520, limitedBy: source.startIndex) ?? source.startIndex
+        let snippetEnd = source.index(stringRange.upperBound, offsetBy: 900, limitedBy: source.endIndex) ?? source.endIndex
+        let prefix = snippetStart == source.startIndex ? "" : "..."
+        let suffix = snippetEnd == source.endIndex ? "" : "..."
+        let snippet = prefix + String(source[snippetStart..<snippetEnd]) + suffix
+
+        var attributed = AttributedString(snippet)
+        attributed.foregroundColor = ListrTheme.ink.opacity(0.4)
+
+        let highlightStartOffset = source.distance(from: snippetStart, to: stringRange.lowerBound) + prefix.count
+        let highlightEndOffset = source.distance(from: snippetStart, to: stringRange.upperBound) + prefix.count
+        if
+            let highlightStart = snippet.index(snippet.startIndex, offsetBy: highlightStartOffset, limitedBy: snippet.endIndex),
+            let highlightEnd = snippet.index(snippet.startIndex, offsetBy: highlightEndOffset, limitedBy: snippet.endIndex),
+            let lower = AttributedString.Index(highlightStart, within: attributed),
+            let upper = AttributedString.Index(highlightEnd, within: attributed) {
+            attributed[lower..<upper].foregroundColor = ListrTheme.accent
+            attributed[lower..<upper].backgroundColor = ListrTheme.accentWash
+            attributed[lower..<upper].font = .system(size: 26, weight: .semibold)
+        }
+
+        return attributed
+    }
+
+    private func compactPreview(_ text: String) -> String {
+        text
+            .components(separatedBy: .whitespacesAndNewlines)
+            .filter { !$0.isEmpty }
+            .joined(separator: " ")
+            .prefix(1400)
+            .description
+    }
+}
+
+private struct FindingsRail: View {
+    let book: Book
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            HStack {
+                Text("Chapters")
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundStyle(ListrTheme.ink)
+                Spacer()
+                ListrChip(text: "\(railRows.count)")
+            }
+            .padding(.horizontal, 20)
+            .padding(.top, 20)
+            .padding(.bottom, 12)
+
+            ScrollView {
+                LazyVStack(spacing: 2) {
+                    ForEach(railRows) { chapter in
+                        ChapterRow(book: book, chapter: chapter)
+                    }
+                }
+                .padding(.horizontal, 10)
+                .padding(.bottom, 16)
+            }
+            .scrollIndicators(.hidden)
+        }
+        .listrCard()
+    }
+
+    private var railRows: [Chapter] {
+        book.chapters.isEmpty ? fallbackChapters : book.chapters
+    }
+
+    private var fallbackChapters: [Chapter] {
+        (1...max(book.chapterCount, 1)).map { index in
+            Chapter(id: UUID(), index: index, title: "Chapter \(index)", text: "", status: .pending, audioPath: nil, timingPath: nil)
+        }
+    }
+}
+
+private struct ChapterRow: View {
+    @Environment(ConversionStore.self) private var conversionStore
+    @Environment(PlaybackStore.self) private var playbackStore
+
+    let book: Book
+    let chapter: Chapter
+
+    var body: some View {
+        Button(action: play) {
+            HStack(spacing: 12) {
+                Image(systemName: isActive && playbackStore.isPlaying ? "waveform" : "play.fill")
+                    .font(.system(size: 11, weight: .bold))
+                    .foregroundStyle(isPlayable || isActive ? Color.white : ListrTheme.mutedLabel)
+                    .frame(width: 30, height: 30)
+                    .background(isPlayable || isActive ? ListrTheme.ink : ListrTheme.chip, in: Circle())
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(chapter.title)
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundStyle(isPlayable ? ListrTheme.ink : ListrTheme.mutedLabel)
+                        .lineLimit(1)
+
+                    if let lastError = chapter.lastError {
+                        Text(lastError)
+                            .font(.system(size: 11, weight: .regular))
+                            .foregroundStyle(.red)
+                            .lineLimit(2)
+                    }
+                }
+
+                Spacer(minLength: 8)
+
+                statusChip
+                    .layoutPriority(1)
+            }
+            .padding(.horizontal, 10)
+            .padding(.vertical, 8)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(
+                isActive ? ListrTheme.chip : .clear,
+                in: RoundedRectangle(cornerRadius: 14, style: .continuous)
+            )
+        }
+        .buttonStyle(.plain)
+        .disabled(!isPlayable)
+        .help(helpText)
+    }
+
+    private var helpText: String {
+        if let lastError = chapter.lastError { return lastError }
+        return isPlayable ? "Play this chapter" : "Convert the book to unlock playback"
+    }
+
+    @ViewBuilder private var statusChip: some View {
+        switch chapter.status {
+        case .ready:
+            ListrChip(text: "Ready", icon: "checkmark", fill: ListrTheme.chip, tint: ListrTheme.ink)
+        case .converting:
+            ListrChip(text: "Converting", icon: "waveform", fill: ListrTheme.accentWash, tint: ListrTheme.accent)
+        case .failed:
+            ListrChip(text: "Failed", icon: "exclamationmark.triangle.fill", fill: Color.red.opacity(0.1), tint: .red)
+        case .pending:
+            EmptyView() // muted row + gray play already read as "not ready"
+        }
+    }
+
+    private var isPlayable: Bool { chapter.isReady }
+
+    private var isActive: Bool {
+        playbackStore.currentBookID == book.id && playbackStore.currentChapterID == chapter.id
+    }
+
+    private func play() {
+        if isActive {
+            playbackStore.togglePlayPause()
+        } else {
+            playbackStore.play(bookID: book.id, chapter: chapter, speed: conversionStore.speed)
+        }
+    }
+}
+
+private struct FloatingReadingControls: View {
+    @Environment(ConversionStore.self) private var conversionStore
+    @Environment(LibraryStore.self) private var libraryStore
+    @Environment(OverlayStore.self) private var overlayStore
+    @Environment(PlaybackStore.self) private var playbackStore
+
+    let book: Book
+
+    @State private var isConfirmingRegenerate = false
+
+    var body: some View {
+        @Bindable var conversionStore = conversionStore
+
+        VStack(alignment: .leading, spacing: 14) {
+            HStack(spacing: 8) {
+                ListrChip(text: activeTitle, icon: "book.fill")
+                ListrChip(text: "\(playbackStore.elapsed.listrTimecode) / \(playbackStore.duration.listrTimecode)", icon: "clock")
+
+                Spacer()
+
+                ListrSpeedMenu(speed: $conversionStore.speed) { playbackStore.applySpeed($0) }
+
+                Text("listr")
+                    .font(.system(size: 15, weight: .bold))
+                    .foregroundStyle(ListrTheme.mutedLabel)
             }
 
-            Slider(
-                value: Binding(
-                    get: { isCurrentBookLoaded ? playbackStore.progress : 0 },
-                    set: { playbackStore.seek(to: $0) }
-                ),
-                in: 0...1
-            )
+            ListrScrubber(progress: playbackStore.progress) { progress in
+                playbackStore.seek(to: progress)
+            }
             .disabled(!isCurrentBookLoaded)
 
-            HStack {
-                Text(isCurrentBookLoaded ? playbackStore.elapsed.listrTimecode : "00:00")
+            HStack(spacing: 10) {
+                RoundControl("backward.end.fill", disabled: previousChapter == nil, help: "Previous chapter", action: playPrevious)
+                RoundControl("gobackward.15", disabled: !isCurrentBookLoaded, help: "Back 15 seconds") {
+                    playbackStore.skip(seconds: -15)
+                }
+                Button {
+                    if isCurrentBookLoaded {
+                        playbackStore.togglePlayPause()
+                    } else if let chapter = firstPlayableChapter {
+                        playbackStore.play(bookID: book.id, chapter: chapter, speed: conversionStore.speed)
+                    }
+                } label: {
+                    Image(systemName: isCurrentBookLoaded && playbackStore.isPlaying ? "pause.fill" : "play.fill")
+                        .font(.system(size: 16, weight: .bold))
+                        .frame(width: 46, height: 46)
+                        .foregroundStyle(.white)
+                        .background(ListrTheme.ink, in: Circle())
+                }
+                .buttonStyle(.plain)
+                .disabled(firstPlayableChapter == nil && !isCurrentBookLoaded)
+                .keyboardShortcut(.space, modifiers: [])
+                .help("Play or pause")
+                RoundControl("goforward.15", disabled: !isCurrentBookLoaded, help: "Forward 15 seconds") {
+                    playbackStore.skip(seconds: 15)
+                }
+                RoundControl("forward.end.fill", disabled: nextChapter == nil, help: "Next chapter", action: playNext)
+                RoundControl(overlayStore.isPresented ? "macwindow.badge.plus" : "macwindow", disabled: false, help: "Toggle reading overlay") {
+                    overlayStore.toggle()
+                }
+
                 Spacer()
-                Text(isCurrentBookLoaded ? playbackStore.duration.listrTimecode : "00:00")
+
+                if libraryStore.isConverting {
+                    Button("Cancel") { libraryStore.cancelConversion() }
+                        .buttonStyle(ListrPillButtonStyle(prominent: false))
+                        .help("Stop conversion")
+                } else {
+                    if libraryStore.canRegenerateSelectedBook {
+                        Button("Regenerate") { isConfirmingRegenerate = true }
+                            .buttonStyle(ListrPillButtonStyle(prominent: false))
+                            .help("Delete generated audio and convert again")
+                    }
+
+                    if libraryStore.canConvertSelectedBook {
+                        Button("Convert") {
+                            libraryStore.convertSelectedBook(configuration: conversionStore.activeConfiguration)
+                        }
+                        .buttonStyle(ListrPillButtonStyle())
+                        .help("Convert chapters to audio")
+                    }
+                }
             }
-            .font(.system(.caption, design: ListrTheme.mono))
-            .foregroundStyle(.secondary)
         }
-        .padding(22)
-        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 8))
-        .onChange(of: conversionStore.speed) { _, speed in
-            guard isCurrentBookLoaded else { return }
-            playbackStore.applySpeed(speed)
+        .padding(20)
+        .listrCard()
+        .confirmationDialog(
+            "Regenerate audio for “\(book.title)”?",
+            isPresented: $isConfirmingRegenerate,
+            titleVisibility: .visible
+        ) {
+            Button("Regenerate", role: .destructive) {
+                if playbackStore.currentBookID == book.id {
+                    playbackStore.unload()
+                }
+                libraryStore.regenerateSelectedBook(configuration: conversionStore.activeConfiguration)
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("Existing audio and word timings for this book are deleted and rebuilt from scratch.")
         }
     }
 
-    private var playableChapters: [Chapter] {
-        book.chapters.filter { chapter in
-            guard chapter.status == .ready, let audioPath = chapter.audioPath else { return false }
-            return FileManager.default.fileExists(atPath: audioPath)
-        }
-    }
+    private var firstPlayableChapter: Chapter? { book.playableChapters.first }
 
-    private var firstPlayableChapter: Chapter? {
-        playableChapters.first
-    }
-
-    private var activeChapterIndex: Int? {
-        guard isCurrentBookLoaded, let currentChapterID = playbackStore.currentChapterID else { return nil }
-        return playableChapters.firstIndex { $0.id == currentChapterID }
+    private var currentChapterID: Chapter.ID? {
+        isCurrentBookLoaded ? playbackStore.currentChapterID : nil
     }
 
     private var previousChapter: Chapter? {
-        guard let index = activeChapterIndex, index > 0 else { return nil }
-        return playableChapters[index - 1]
+        currentChapterID.flatMap { book.chapter(before: $0) }
     }
 
     private var nextChapter: Chapter? {
-        guard let index = activeChapterIndex, index + 1 < playableChapters.count else { return nil }
-        return playableChapters[index + 1]
+        currentChapterID.flatMap { book.chapter(after: $0) }
     }
 
     private var isCurrentBookLoaded: Bool {
         playbackStore.hasLoadedChapter(for: book.id)
     }
 
-    private var currentSubtitle: String {
+    private var activeTitle: String {
         if playbackStore.currentBookID == book.id, !playbackStore.currentTitle.isEmpty {
             return playbackStore.currentTitle
         }
         if let firstPlayableChapter {
-            return "Ready: \(firstPlayableChapter.title)"
+            return firstPlayableChapter.title
         }
-        return "Convert chapters before playback."
+        return "No audio ready yet"
     }
 
     private func playPrevious() {
@@ -232,210 +411,53 @@ private struct PlayerPanel: View {
     }
 }
 
-private struct ConversionPanel: View {
-    @Environment(ConversionStore.self) private var conversionStore
+private struct RoundControl: View {
+    let icon: String
+    let disabled: Bool
+    let help: String
+    let action: () -> Void
+
+    init(_ icon: String, disabled: Bool, help: String, action: @escaping () -> Void) {
+        self.icon = icon
+        self.disabled = disabled
+        self.help = help
+        self.action = action
+    }
 
     var body: some View {
-        @Bindable var conversionStore = conversionStore
-
-        VStack(alignment: .leading, spacing: 18) {
-            HStack {
-                Text("narration")
-                    .font(.system(.title2, design: ListrTheme.mono).weight(.bold))
-                Spacer()
-                Text(conversionStore.selectedEngine.loadProfile)
-                    .font(.system(.caption, design: ListrTheme.mono).weight(.semibold))
-                    .foregroundStyle(.secondary)
-            }
-
-            Picker("Engine", selection: $conversionStore.selectedEngine) {
-                ForEach(VoiceEngine.allCases) { engine in
-                    Text(engine.title).tag(engine)
-                }
-            }
-            .pickerStyle(.segmented)
-
-            HStack(spacing: 14) {
-                MetricTile(title: "Speed", value: String(format: "%.2fx", conversionStore.speed), color: ListrTheme.sunYellow)
-                MetricTile(title: "Jobs", value: "\(conversionStore.maxParallelJobs)", color: ListrTheme.citrusOrange)
-            }
-
-            Slider(value: $conversionStore.speed, in: 0.75...1.35) {
-                Text("Speed")
-            } minimumValueLabel: {
-                Text("0.75")
-            } maximumValueLabel: {
-                Text("1.35")
-            }
-
-            Stepper("Parallel jobs: \(conversionStore.maxParallelJobs)", value: $conversionStore.maxParallelJobs, in: 1...3)
-            Toggle("Battery friendly", isOn: $conversionStore.preserveBattery)
-            Toggle("Word timings", isOn: $conversionStore.generateWordTimings)
-
-            Label(conversionStore.estimatedLoad, systemImage: "cpu")
-                .font(.system(.caption, design: ListrTheme.mono))
-                .foregroundStyle(.secondary)
+        Button(action: action) {
+            Image(systemName: icon)
+                .font(.system(size: 13, weight: .semibold))
+                .frame(width: 38, height: 38)
+                .foregroundStyle(ListrTheme.ink)
+                .background(ListrTheme.chip, in: Circle())
         }
-        .padding(22)
-        .background(ListrTheme.ink, in: RoundedRectangle(cornerRadius: 8))
-        .foregroundStyle(.white)
-        .tint(ListrTheme.sunYellow)
+        .buttonStyle(.plain)
+        .disabled(disabled)
+        .opacity(disabled ? 0.4 : 1)
+        .help(help)
     }
 }
 
-private struct QueuePanel: View {
-    let book: Book
-
+private struct EmptyLibraryView: View {
     var body: some View {
-        VStack(alignment: .leading, spacing: 18) {
-            Text("queue")
-                .font(.system(.title2, design: ListrTheme.mono).weight(.bold))
-
-            ProgressView(value: book.progress)
-                .tint(.white)
-
-            VStack(spacing: 0) {
-                ForEach(queueRows) { chapter in
-                    HStack {
-                        Text(chapter.title)
-                            .font(.system(.body, design: ListrTheme.mono).weight(.bold))
-                            .lineLimit(1)
-                        Spacer()
-                        Text(chapter.status.rawValue)
-                            .font(.system(.caption, design: ListrTheme.mono))
-                            .opacity(0.75)
-                    }
-                    .padding(.vertical, 11)
-                    Divider().overlay(.white.opacity(0.16))
-                }
-            }
-        }
-        .padding(24)
-        .background(ListrTheme.electricBlue, in: RoundedRectangle(cornerRadius: 8))
-        .foregroundStyle(.white)
-    }
-
-    private var queueRows: [Chapter] {
-        let chapters = book.chapters.isEmpty ? fallbackChapters : book.chapters
-        return Array(chapters.prefix(6))
-    }
-
-    private var fallbackChapters: [Chapter] {
-        (1...max(book.chapterCount, 1)).map { index in
-            Chapter(
-                id: UUID(),
-                index: index,
-                title: "Chapter \(index)",
-                text: "",
-                status: index <= Int(Double(book.chapterCount) * book.progress) ? .ready : .pending,
-                audioPath: nil,
-                timingPath: nil
-            )
-        }
-    }
-}
-
-private struct ChapterPanel: View {
-    let book: Book
-
-    var body: some View {
-        let chapters = book.chapters.isEmpty ? fallbackChapters : book.chapters
-
         VStack(alignment: .leading, spacing: 14) {
-            Text("chapters")
-                .font(.system(.title, design: ListrTheme.mono).weight(.bold))
-
-            LazyVGrid(columns: [GridItem(.adaptive(minimum: 250), spacing: 14)], spacing: 14) {
-                ForEach(chapters.prefix(12)) { chapter in
-                    ChapterCard(chapter: chapter)
-                }
-            }
-        }
-    }
-
-    private var fallbackChapters: [Chapter] {
-        (1...max(book.chapterCount, 1)).map { index in
-            Chapter(
-                id: UUID(),
-                index: index,
-                title: "Chapter \(index)",
-                text: "",
-                status: index <= Int(Double(book.chapterCount) * book.progress) ? .ready : .pending,
-                audioPath: nil,
-                timingPath: nil
+            ListrChip(
+                text: "Welcome",
+                icon: "sparkles",
+                fill: ListrTheme.accentWash,
+                tint: ListrTheme.accent
             )
+            Text("Drop a book into sound")
+                .font(.system(size: 34, weight: .semibold))
+                .foregroundStyle(ListrTheme.ink)
+            Text("Import FB2, EPUB, or TXT and turn it into a tiny local talking book.")
+                .font(.system(size: 15, weight: .regular))
+                .foregroundStyle(ListrTheme.mutedLabel)
         }
-    }
-}
-
-private struct ChapterCard: View {
-    let chapter: Chapter
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 18) {
-            Text(String(format: "%02d", chapter.index))
-                .font(.system(.caption, design: ListrTheme.mono).weight(.bold))
-                .foregroundStyle(.secondary)
-
-            Text(chapter.title)
-                .font(.system(.title3, design: ListrTheme.serif).weight(.bold))
-                .lineLimit(2)
-
-            Spacer(minLength: 8)
-
-            HStack {
-                Text("\(chapter.wordCount) words")
-                Spacer()
-                Text(chapter.status.rawValue)
-            }
-            .font(.system(.caption, design: ListrTheme.mono))
-            .foregroundStyle(.secondary)
-        }
-        .padding(18)
-        .frame(minHeight: 158, alignment: .topLeading)
-        .background(cardColor, in: RoundedRectangle(cornerRadius: 8))
-    }
-
-    private var cardColor: Color {
-        switch chapter.index % 4 {
-        case 0: ListrTheme.quietBlue
-        case 1: ListrTheme.paperPink.opacity(0.82)
-        case 2: ListrTheme.softMint
-        default: ListrTheme.sunYellow.opacity(0.82)
-        }
-    }
-}
-
-private struct MetricTile: View {
-    let title: String
-    let value: String
-    let color: Color
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text(title)
-                .font(.system(.caption, design: ListrTheme.mono).weight(.bold))
-            Text(value)
-                .font(.system(size: 34, weight: .bold, design: ListrTheme.mono))
-        }
-        .foregroundStyle(.black)
-        .padding(16)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(color, in: RoundedRectangle(cornerRadius: 8))
-    }
-}
-
-private struct Stat: View {
-    let label: String
-    let value: String
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 5) {
-            Text(label)
-                .font(.system(.caption, design: ListrTheme.mono).weight(.bold))
-                .foregroundStyle(.secondary)
-            Text(value)
-                .font(.system(.title3, design: ListrTheme.mono).weight(.bold))
-        }
+        .padding(36)
+        .frame(maxWidth: 520, alignment: .leading)
+        .listrCard()
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 }

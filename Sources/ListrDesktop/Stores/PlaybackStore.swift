@@ -26,9 +26,15 @@ final class PlaybackStore {
     var duration: TimeInterval = 0
     var isPlaying = false
     var playbackError: String?
+    var currentText = ""
+
+    /// Called when a chapter plays to the end; wired by the app to auto-advance.
+    @ObservationIgnored var onChapterFinished: ((Book.ID, Chapter.ID) -> Void)?
 
     @ObservationIgnored private var player: AVAudioPlayer?
     @ObservationIgnored private var progressTask: Task<Void, Never>?
+    @ObservationIgnored private var currentTiming: ChapterTiming?
+    @ObservationIgnored private let playerDelegate = PlayerFinishDelegate()
 
     var hasLoadedChapter: Bool {
         currentChapterID != nil
@@ -37,6 +43,10 @@ final class PlaybackStore {
     var progress: Double {
         guard duration > 0 else { return 0 }
         return min(max(elapsed / duration, 0), 1)
+    }
+
+    var currentWord: ChapterWordTiming? {
+        currentTiming?.word(at: elapsed)
     }
 
     func play(bookID: Book.ID, chapter: Chapter, speed: Double) {
@@ -55,14 +65,20 @@ final class PlaybackStore {
             if currentChapterID != chapter.id {
                 stopProgressUpdates()
                 player = try AVAudioPlayer(contentsOf: audioURL)
+                playerDelegate.onFinish = { [weak self] in
+                    Task { @MainActor in self?.handleChapterFinished() }
+                }
+                player?.delegate = playerDelegate
                 player?.enableRate = true
                 player?.prepareToPlay()
                 currentBookID = bookID
                 currentChapterID = chapter.id
                 currentTitle = chapter.title
+                currentText = chapter.text
                 duration = player?.duration ?? 0
                 elapsed = min(chapter.resumePosition ?? 0, max(duration - 1, 0))
                 player?.currentTime = elapsed
+                currentTiming = loadTiming(for: chapter, duration: duration)
             }
 
             player?.rate = Float(speed)
@@ -99,6 +115,19 @@ final class PlaybackStore {
         player?.pause()
         isPlaying = false
         stopProgressUpdates()
+    }
+
+    /// Drops the loaded chapter entirely — used when its audio is about to be deleted.
+    func unload() {
+        stop()
+        player = nil
+        currentTiming = nil
+        currentBookID = nil
+        currentChapterID = nil
+        currentTitle = ""
+        currentText = ""
+        elapsed = 0
+        duration = 0
     }
 
     func seek(to progress: Double) {
@@ -142,5 +171,34 @@ final class PlaybackStore {
     private func stopProgressUpdates() {
         progressTask?.cancel()
         progressTask = nil
+    }
+
+    private func handleChapterFinished() {
+        elapsed = duration
+        isPlaying = false
+        stopProgressUpdates()
+        guard let bookID = currentBookID, let chapterID = currentChapterID else { return }
+        onChapterFinished?(bookID, chapterID)
+    }
+
+    private func loadTiming(for chapter: Chapter, duration: TimeInterval) -> ChapterTiming {
+        if
+            let timingPath = chapter.timingPath,
+            let data = try? Data(contentsOf: URL(fileURLWithPath: timingPath)),
+            let timing = try? JSONDecoder().decode(ChapterTiming.self, from: data)
+        {
+            return timing
+        }
+
+        return ChapterTimingBuilder.build(text: chapter.text, duration: duration)
+    }
+}
+
+// AVAudioPlayer needs an NSObject delegate; PlaybackStore is a plain Observable class.
+private final class PlayerFinishDelegate: NSObject, AVAudioPlayerDelegate {
+    var onFinish: () -> Void = {}
+
+    func audioPlayerDidFinishPlaying(_ player: AVAudioPlayer, successfully flag: Bool) {
+        onFinish()
     }
 }
