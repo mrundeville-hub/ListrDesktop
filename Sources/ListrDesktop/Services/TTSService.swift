@@ -6,7 +6,10 @@ enum TTSError: LocalizedError {
     case couldNotStart
     case missingRussianVoice
     case missingPiperRuntime
+    case missingCommand
     case synthesisFailed
+    case commandFailed(status: Int32, message: String)
+    case emptyOutput
 
     var errorDescription: String? {
         switch self {
@@ -18,8 +21,16 @@ enum TTSError: LocalizedError {
             "No Russian system voice is installed. Install a ru-RU voice in macOS System Settings."
         case .missingPiperRuntime:
             "Piper runtime or voice model is not configured."
+        case .missingCommand:
+            "No synthesis command is configured. Add one in Settings → Command engine."
         case .synthesisFailed:
             "System speech synthesis did not finish successfully."
+        case .commandFailed(let status, let message):
+            message.isEmpty
+                ? "The synthesis command exited with code \(status)."
+                : "The synthesis command failed (code \(status)): \(message)"
+        case .emptyOutput:
+            "The synthesis command finished but produced no audio."
         }
     }
 }
@@ -30,6 +41,21 @@ struct TTSConfiguration: Sendable, Equatable {
     var piperExecutablePath: String?
     var piperModelPath: String?
     var piperConfigPath: String?
+    /// Shell command for the `.custom` engine. `{text_file}` and `{output}` are substituted.
+    var customCommand: String = ""
+    var customOutputExtension: String = "wav"
+
+    /// Container format each engine writes, used to name the chapter file on disk.
+    var outputFileExtension: String {
+        switch engine {
+        case .system: "aiff"
+        case .piper: "wav"
+        case .custom:
+            customOutputExtension.trimmingCharacters(in: .whitespaces).isEmpty
+                ? "wav"
+                : customOutputExtension.trimmingCharacters(in: .whitespaces)
+        }
+    }
 }
 
 @MainActor
@@ -53,8 +79,12 @@ struct SystemTTSService: TTSService {
                 configuration: configuration,
                 to: outputURL
             )
-        case .neuralLocal:
-            throw TTSError.unsupportedEngine(configuration.engine)
+        case .custom:
+            return try await synthesizeWithCommand(
+                chapterText: chapterText,
+                configuration: configuration,
+                to: outputURL
+            )
         }
     }
 
@@ -110,13 +140,97 @@ struct SystemTTSService: TTSService {
             try process.run()
             inputPipe.fileHandleForWriting.write(Data(chapterText.utf8))
             try inputPipe.fileHandleForWriting.close()
+            let errorData = errorPipe.fileHandleForReading.readDataToEndOfFile()
             process.waitUntilExit()
 
             guard process.terminationStatus == 0 else {
-                throw TTSError.synthesisFailed
+                throw TTSError.commandFailed(
+                    status: process.terminationStatus,
+                    message: Self.tail(of: errorData)
+                )
             }
+            try Self.verifyNonEmptyAudio(at: outputURL)
             return outputURL
         }.value
+    }
+
+    /// Runs a user-supplied shell command so any local or CLI-driven model can narrate a chapter.
+    /// The chapter text is handed over as a file — it never goes through the command line.
+    private func synthesizeWithCommand(chapterText: String, configuration: TTSConfiguration, to outputURL: URL) async throws -> URL {
+        let template = configuration.customCommand.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !template.isEmpty else { throw TTSError.missingCommand }
+
+        try? FileManager.default.removeItem(at: outputURL)
+        try FileManager.default.createDirectory(
+            at: outputURL.deletingLastPathComponent(),
+            withIntermediateDirectories: true
+        )
+
+        let textURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent("listr-\(UUID().uuidString).txt")
+        try Data(chapterText.utf8).write(to: textURL)
+
+        let command = template
+            .replacingOccurrences(of: "{text_file}", with: Self.shellQuoted(textURL.path))
+            .replacingOccurrences(of: "{output}", with: Self.shellQuoted(outputURL.path))
+
+        return try await Task.detached(priority: .userInitiated) {
+            defer { try? FileManager.default.removeItem(at: textURL) }
+
+            let process = Process()
+            process.executableURL = URL(fileURLWithPath: "/bin/sh")
+            process.arguments = ["-c", command]
+            process.environment = Self.environmentWithCommonToolPaths()
+
+            let errorPipe = Pipe()
+            process.standardError = errorPipe
+            process.standardOutput = FileHandle.nullDevice
+
+            try process.run()
+            let errorData = errorPipe.fileHandleForReading.readDataToEndOfFile()
+            process.waitUntilExit()
+
+            guard process.terminationStatus == 0 else {
+                throw TTSError.commandFailed(
+                    status: process.terminationStatus,
+                    message: Self.tail(of: errorData)
+                )
+            }
+            try Self.verifyNonEmptyAudio(at: outputURL)
+            return outputURL
+        }.value
+    }
+
+    // A GUI app inherits a bare PATH, so Homebrew and pipx tools would not be found otherwise.
+    nonisolated private static func environmentWithCommonToolPaths() -> [String: String] {
+        var environment = ProcessInfo.processInfo.environment
+        let toolPaths = [
+            "/opt/homebrew/bin",
+            "/usr/local/bin",
+            "\(NSHomeDirectory())/.local/bin",                          // pipx / uv
+            "/Library/Frameworks/Python.framework/Versions/Current/bin", // python.org installs
+            "/usr/bin",
+            "/bin",
+            "/usr/sbin",
+            "/sbin"
+        ].joined(separator: ":")
+        environment["PATH"] = environment["PATH"].map { "\($0):\(toolPaths)" } ?? toolPaths
+        return environment
+    }
+
+    nonisolated private static func shellQuoted(_ path: String) -> String {
+        "'" + path.replacingOccurrences(of: "'", with: "'\\''") + "'"
+    }
+
+    nonisolated private static func tail(of errorData: Data) -> String {
+        let text = String(decoding: errorData, as: UTF8.self)
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        return String(text.suffix(400))
+    }
+
+    nonisolated private static func verifyNonEmptyAudio(at url: URL) throws {
+        let size = (try? FileManager.default.attributesOfItem(atPath: url.path)[.size] as? Int) ?? nil
+        guard let size, size > 0 else { throw TTSError.emptyOutput }
     }
 }
 

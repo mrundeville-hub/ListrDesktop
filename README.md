@@ -9,7 +9,8 @@ Phase 3 listening loop baseline is in place:
 - SwiftPM macOS app scaffold.
 - SwiftUI `NavigationSplitView` library/detail layout.
 - Settings surface for narration defaults and low-load conversion controls.
-- Replaceable `TTSService` interface for system and local neural engines.
+- Three narration engines: macOS system voices, local Piper, and a command engine that runs any
+  CLI model (edge-tts, Silero, XTTS…). See `docs/VOICES.md` for setup and quality tradeoffs.
 - FB2, EPUB, and TXT file import foundation.
 - JSON library persistence in Application Support.
 - System voice chapter export with resumable per-chapter audio files.

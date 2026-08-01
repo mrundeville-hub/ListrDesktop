@@ -234,7 +234,11 @@ final class LibraryStore {
             var temporaryURL: URL?
 
             do {
-                let finalURL = try chapterAudioURL(bookID: bookID, chapter: chapter, engine: configuration.engine)
+                let finalURL = try chapterAudioURL(
+                    bookID: bookID,
+                    chapter: chapter,
+                    fileExtension: configuration.outputFileExtension
+                )
                 if FileManager.default.fileExists(atPath: finalURL.path) {
                     books[bookIndex].chapters[chapterIndex].audioPath = finalURL.path
                     books[bookIndex].chapters[chapterIndex].timingPath = try ensureTimingFile(
@@ -420,11 +424,10 @@ final class LibraryStore {
         }
     }
 
-    private func chapterAudioURL(bookID: Book.ID, chapter: Chapter, engine: VoiceEngine) throws -> URL {
+    private func chapterAudioURL(bookID: Book.ID, chapter: Chapter, fileExtension: String) throws -> URL {
         let baseURL = audioRootURL.appendingPathComponent(bookID.uuidString)
         try FileManager.default.createDirectory(at: baseURL, withIntermediateDirectories: true)
 
-        let fileExtension = engine == .piper ? "wav" : "aiff"
         let filename = String(format: "%03d-%@.%@", chapter.index, safeFileName(chapter.title), fileExtension)
         return baseURL.appendingPathComponent(filename)
     }

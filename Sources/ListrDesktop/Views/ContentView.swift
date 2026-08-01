@@ -20,7 +20,7 @@ struct ContentView: View {
                 DetailView(book: libraryStore.selectedBook)
             }
             .padding(.horizontal, 20)
-            .padding(.top, 44) // clears the traffic lights
+            .padding(.top, 30) // just clears the traffic lights, which end around y=26
             .padding(.bottom, 20)
         }
         .tint(ListrTheme.ink)

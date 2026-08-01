@@ -73,21 +73,25 @@ private struct ReaderCanvasPanel: View {
             .padding(.horizontal, 30)
             .padding(.top, 24)
 
-            ScrollViewReader { proxy in
-                ScrollView {
-                    Text(highlightedPassage)
-                        .font(.system(size: 26, weight: .regular))
-                        .lineSpacing(11)
-                        .textSelection(.enabled)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .id("reader-text")
-                        .padding(.horizontal, 30)
-                        .padding(.top, 26)
-                        .padding(.bottom, 40)
-                }
-                .onChange(of: playbackStore.currentWord?.index) { _, _ in
-                    withAnimation(.smooth(duration: 0.28)) {
-                        proxy.scrollTo("reader-text", anchor: .center)
+            if playbackStore.currentText.isEmpty {
+                idlePlaceholder
+            } else {
+                ScrollViewReader { proxy in
+                    ScrollView {
+                        Text(highlightedPassage)
+                            .font(.system(size: 26, weight: .regular))
+                            .lineSpacing(11)
+                            .textSelection(.enabled)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .id("reader-text")
+                            .padding(.horizontal, 30)
+                            .padding(.top, 26)
+                            .padding(.bottom, 40)
+                    }
+                    .onChange(of: playbackStore.currentWord?.index) { _, _ in
+                        withAnimation(.smooth(duration: 0.28)) {
+                            proxy.scrollTo("reader-text", anchor: .center)
+                        }
                     }
                 }
             }
@@ -95,13 +99,29 @@ private struct ReaderCanvasPanel: View {
         .listrCard()
     }
 
-    private var highlightedPassage: AttributedString {
-        guard !playbackStore.currentText.isEmpty else {
-            var empty = AttributedString("Convert a chapter, press play, and the spoken words will appear here.")
-            empty.foregroundColor = ListrTheme.mutedLabel
-            return empty
-        }
+    // Nothing loaded yet: keep the canvas calm and centered instead of one stray line of text.
+    private var idlePlaceholder: some View {
+        VStack(spacing: 14) {
+            Image(systemName: "waveform")
+                .font(.system(size: 22, weight: .semibold))
+                .foregroundStyle(ListrTheme.accent)
+                .frame(width: 62, height: 62)
+                .background(ListrTheme.accentWash, in: Circle())
 
+            Text("Nothing playing yet")
+                .font(.system(size: 20, weight: .semibold))
+                .foregroundStyle(ListrTheme.ink)
+
+            Text("Convert a chapter, then press play. Each spoken word is highlighted here as you listen.")
+                .font(.system(size: 14))
+                .foregroundStyle(ListrTheme.mutedLabel)
+                .multilineTextAlignment(.center)
+                .frame(maxWidth: 340)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    private var highlightedPassage: AttributedString {
         guard
             let word = playbackStore.currentWord,
             let stringRange = Range(NSRange(location: word.location, length: word.length), in: playbackStore.currentText)
@@ -336,11 +356,13 @@ private struct FloatingReadingControls: View {
                     Button("Cancel") { libraryStore.cancelConversion() }
                         .buttonStyle(ListrPillButtonStyle(prominent: false))
                         .help("Stop conversion")
+                        .fixedSize()
                 } else {
                     if libraryStore.canRegenerateSelectedBook {
                         Button("Regenerate") { isConfirmingRegenerate = true }
                             .buttonStyle(ListrPillButtonStyle(prominent: false))
                             .help("Delete generated audio and convert again")
+                            .fixedSize()
                     }
 
                     if libraryStore.canConvertSelectedBook {
@@ -349,6 +371,7 @@ private struct FloatingReadingControls: View {
                         }
                         .buttonStyle(ListrPillButtonStyle())
                         .help("Convert chapters to audio")
+                        .fixedSize()
                     }
                 }
             }

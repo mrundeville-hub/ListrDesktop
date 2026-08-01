@@ -41,7 +41,10 @@ ListrDesktop is a working native macOS SwiftUI app with FB2, EPUB, and TXT impor
 
 3. Packaging
    - Add app icon and bundle metadata.
-   - Decide sandbox and file-access entitlements.
+   - Sandbox decision: App Sandbox is off. It moved the library into a per-app container,
+     orphaning the existing `~/Library/Application Support/ListrDesktop` data, and blocked
+     Piper from executing out of `.tools/`. Re-enabling it requires migrating the library
+     into the container and relocating the Piper install.
    - Build signing, notarization, and release packaging flow.
 
 4. Persistence Evolution

@@ -138,7 +138,6 @@ struct ListrPillButtonStyle: ButtonStyle {
         configuration.label
             .font(.system(size: 14, weight: .semibold))
             .lineLimit(1)
-            .fixedSize() // keep the label on one line when the row runs out of width
             .foregroundStyle(prominent ? Color.white : ListrTheme.ink)
             .padding(.horizontal, 18)
             .padding(.vertical, 9)

@@ -1,9 +1,14 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
+<!--
+  App Sandbox is intentionally off: this is a local-first personal desktop app that
+  reads its library from ~/Library/Application Support/ListrDesktop and shells out to
+  a local Piper binary in .tools/. Both are blocked inside a sandbox container.
+  Re-enabling the sandbox means migrating the existing library into the container and
+  giving Piper a different install path.
+-->
 <dict>
-  <key>com.apple.security.app-sandbox</key>
-  <true/>
   <key>com.apple.security.files.user-selected.read-write</key>
   <true/>
 </dict>

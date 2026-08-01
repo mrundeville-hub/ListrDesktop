@@ -2,23 +2,23 @@ import Foundation
 
 enum VoiceEngine: String, CaseIterable, Identifiable, Sendable, Codable {
     case system
-    case neuralLocal
+    case custom
     case piper
 
     var id: String { rawValue }
 
     var title: String {
         switch self {
-        case .system: "System Voice"
-        case .neuralLocal: "Local Neural"
-        case .piper: "Piper Runtime"
+        case .system: "System"
+        case .custom: "Command"
+        case .piper: "Piper"
         }
     }
 
     var loadProfile: String {
         switch self {
         case .system: "Lowest load"
-        case .neuralLocal: "Balanced"
+        case .custom: "Depends on the model"
         case .piper: "Quality mode"
         }
     }

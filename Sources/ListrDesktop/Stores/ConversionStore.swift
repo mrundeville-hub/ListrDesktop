@@ -40,6 +40,14 @@ final class ConversionStore {
         didSet { defaults.set(generateWordTimings, forKey: Keys.generateWordTimings) }
     }
 
+    var customCommand: String {
+        didSet { defaults.set(customCommand, forKey: Keys.customCommand) }
+    }
+
+    var customOutputExtension: String {
+        didSet { defaults.set(customOutputExtension, forKey: Keys.customOutputExtension) }
+    }
+
     @ObservationIgnored private let defaults: UserDefaults
 
     init(defaults: UserDefaults = .standard) {
@@ -53,6 +61,8 @@ final class ConversionStore {
         maxParallelJobs = defaults.object(forKey: Keys.maxParallelJobs) as? Int ?? 1
         preserveBattery = defaults.object(forKey: Keys.preserveBattery) as? Bool ?? true
         generateWordTimings = defaults.object(forKey: Keys.generateWordTimings) as? Bool ?? true
+        customCommand = defaults.string(forKey: Keys.customCommand) ?? ""
+        customOutputExtension = defaults.string(forKey: Keys.customOutputExtension) ?? "wav"
 
         if !availableEngines.contains(selectedEngine) {
             selectedEngine = .system
@@ -92,8 +102,72 @@ final class ConversionStore {
             && FileManager.default.fileExists(atPath: piperConfigPath)
     }
 
+    var isCustomCommandReady: Bool {
+        customCommand.contains("{output}")
+    }
+
     var availableEngines: [VoiceEngine] {
-        isPiperReady ? [.piper, .system] : [.system]
+        var engines: [VoiceEngine] = []
+        if isPiperReady { engines.append(.piper) }
+        if isCustomCommandReady { engines.append(.custom) }
+        engines.append(.system)
+        return engines
+    }
+
+    /// Every Piper voice sitting next to the selected one, so switching voices is a menu pick
+    /// instead of editing two file paths by hand.
+    var installedPiperVoices: [PiperVoiceOption] {
+        let root = URL(fileURLWithPath: piperVoicesDirectory)
+        guard let entries = try? FileManager.default.contentsOfDirectory(
+            at: root,
+            includingPropertiesForKeys: nil
+        ) else {
+            return []
+        }
+
+        return entries
+            .flatMap { entry -> [URL] in
+                var isDirectory: ObjCBool = false
+                FileManager.default.fileExists(atPath: entry.path, isDirectory: &isDirectory)
+                guard isDirectory.boolValue else { return [entry] }
+                return (try? FileManager.default.contentsOfDirectory(at: entry, includingPropertiesForKeys: nil)) ?? []
+            }
+            .filter { $0.pathExtension == "onnx" }
+            .compactMap { modelURL in
+                let configURL = modelURL.appendingPathExtension("json")
+                guard FileManager.default.fileExists(atPath: configURL.path) else { return nil }
+                return PiperVoiceOption(
+                    id: modelURL.path,
+                    name: modelURL.deletingPathExtension().lastPathComponent,
+                    configPath: configURL.path
+                )
+            }
+            .sorted { $0.name < $1.name }
+    }
+
+    /// Folder scanned for voices — the parent of the current model, so it follows a manual override.
+    var piperVoicesDirectory: String {
+        get {
+            if let stored = defaults.string(forKey: Keys.piperVoicesDirectory), !stored.isEmpty {
+                return stored
+            }
+            guard !piperModelPath.isEmpty else { return Self.defaultPiperVoicesDirectory }
+            return URL(fileURLWithPath: piperModelPath)
+                .deletingLastPathComponent()
+                .deletingLastPathComponent()
+                .path
+        }
+        set { defaults.set(newValue, forKey: Keys.piperVoicesDirectory) }
+    }
+
+    var selectedPiperVoiceName: String {
+        guard !piperModelPath.isEmpty else { return "No voice selected" }
+        return URL(fileURLWithPath: piperModelPath).deletingPathExtension().lastPathComponent
+    }
+
+    func selectPiperVoice(_ voice: PiperVoiceOption) {
+        piperModelPath = voice.id
+        piperConfigPath = voice.configPath
     }
 
     var activeConfiguration: TTSConfiguration {
@@ -102,7 +176,9 @@ final class ConversionStore {
             systemVoiceIdentifier: selectedSystemVoiceIdentifier.isEmpty ? nil : selectedSystemVoiceIdentifier,
             piperExecutablePath: piperExecutablePath.isEmpty ? nil : piperExecutablePath,
             piperModelPath: piperModelPath.isEmpty ? nil : piperModelPath,
-            piperConfigPath: piperConfigPath.isEmpty ? nil : piperConfigPath
+            piperConfigPath: piperConfigPath.isEmpty ? nil : piperConfigPath,
+            customCommand: customCommand,
+            customOutputExtension: customOutputExtension
         )
     }
 
@@ -124,6 +200,10 @@ final class ConversionStore {
             .path
     }
 
+    private static var defaultPiperVoicesDirectory: String {
+        defaultProjectRoot.appendingPathComponent(".tools/piper-voices").path
+    }
+
     private static var defaultProjectRoot: URL {
         let bundleURL = Bundle.main.bundleURL
         if bundleURL.pathExtension == "app" {
@@ -135,6 +215,12 @@ final class ConversionStore {
 
         return URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
     }
+}
+
+struct PiperVoiceOption: Identifiable, Hashable, Sendable {
+    let id: String
+    let name: String
+    let configPath: String
 }
 
 struct SystemVoiceOption: Identifiable, Hashable, Sendable {
@@ -169,4 +255,7 @@ private enum Keys {
     static let maxParallelJobs = "conversion.maxParallelJobs"
     static let preserveBattery = "conversion.preserveBattery"
     static let generateWordTimings = "conversion.generateWordTimings"
+    static let customCommand = "conversion.customCommand"
+    static let customOutputExtension = "conversion.customOutputExtension"
+    static let piperVoicesDirectory = "conversion.piperVoicesDirectory"
 }

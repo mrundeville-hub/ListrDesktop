@@ -284,6 +284,78 @@ struct LibraryConversionTests {
         #expect(FileManager.default.fileExists(atPath: sourceURL.path))
     }
 
+    @Test("command engine substitutes placeholders and keeps the chapter text intact")
+    func commandEngineSubstitutesPlaceholders() async throws {
+        let directory = try TemporaryDirectory()
+        let outputURL = directory.url.appendingPathComponent("chapter.wav")
+        let configuration = TTSConfiguration(
+            engine: .custom,
+            systemVoiceIdentifier: nil,
+            piperExecutablePath: nil,
+            piperModelPath: nil,
+            piperConfigPath: nil,
+            customCommand: "cp {text_file} {output}",
+            customOutputExtension: "wav"
+        )
+
+        #expect(configuration.outputFileExtension == "wav")
+
+        let producedURL = try await SystemTTSService().synthesize(
+            chapterText: "Утро было ясное, и город просыпался медленно.",
+            configuration: configuration,
+            to: outputURL
+        )
+
+        let written = try String(contentsOf: producedURL, encoding: .utf8)
+        #expect(written == "Утро было ясное, и город просыпался медленно.")
+    }
+
+    @Test("command engine reports a failing command instead of leaving a silent chapter")
+    func commandEngineReportsFailure() async throws {
+        let directory = try TemporaryDirectory()
+        let outputURL = directory.url.appendingPathComponent("chapter.wav")
+        let configuration = TTSConfiguration(
+            engine: .custom,
+            systemVoiceIdentifier: nil,
+            piperExecutablePath: nil,
+            piperModelPath: nil,
+            piperConfigPath: nil,
+            customCommand: "echo 'voice model missing' >&2; exit 3 # {text_file} {output}",
+            customOutputExtension: "wav"
+        )
+
+        await #expect(throws: TTSError.self) {
+            try await SystemTTSService().synthesize(
+                chapterText: "Текст главы",
+                configuration: configuration,
+                to: outputURL
+            )
+        }
+    }
+
+    @Test("command engine rejects a command that writes nothing")
+    func commandEngineRejectsEmptyOutput() async throws {
+        let directory = try TemporaryDirectory()
+        let outputURL = directory.url.appendingPathComponent("chapter.wav")
+        let configuration = TTSConfiguration(
+            engine: .custom,
+            systemVoiceIdentifier: nil,
+            piperExecutablePath: nil,
+            piperModelPath: nil,
+            piperConfigPath: nil,
+            customCommand: "true # {text_file} {output}",
+            customOutputExtension: "wav"
+        )
+
+        await #expect(throws: TTSError.self) {
+            try await SystemTTSService().synthesize(
+                chapterText: "Текст главы",
+                configuration: configuration,
+                to: outputURL
+            )
+        }
+    }
+
     @Test("synthesizes Russian audio with local Piper when installed")
     func synthesizesRussianWithPiperWhenInstalled() async throws {
         let root = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
