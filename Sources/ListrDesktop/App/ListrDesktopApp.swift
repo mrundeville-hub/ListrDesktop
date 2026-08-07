@@ -18,6 +18,13 @@ struct ListrDesktopApp: App {
                 .environment(overlayStore)
                 .frame(minWidth: 720, minHeight: 520)
                 .onAppear {
+                    // Keep the window user-resizable; hiddenTitleBar + tiling can drop the bit.
+                    DispatchQueue.main.async {
+                        for window in NSApplication.shared.windows where window.isVisible {
+                            window.styleMask.insert(.resizable)
+                            window.minSize = NSSize(width: 720, height: 520)
+                        }
+                    }
                     playbackStore.onChapterFinished = { bookID, chapterID in
                         autoAdvance(bookID: bookID, finishedChapterID: chapterID)
                     }
