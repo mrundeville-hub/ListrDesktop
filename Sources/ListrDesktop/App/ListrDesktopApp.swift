@@ -16,7 +16,7 @@ struct ListrDesktopApp: App {
                 .environment(conversionStore)
                 .environment(playbackStore)
                 .environment(overlayStore)
-                .frame(minWidth: 1120, minHeight: 720)
+                .frame(minWidth: 720, minHeight: 520)
                 .onAppear {
                     playbackStore.onChapterFinished = { bookID, chapterID in
                         autoAdvance(bookID: bookID, finishedChapterID: chapterID)

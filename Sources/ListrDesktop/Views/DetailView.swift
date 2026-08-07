@@ -31,17 +31,23 @@ private struct FullscreenReadingWorkspace: View {
     let book: Book
 
     var body: some View {
-        HStack(alignment: .top, spacing: 20) {
-            VStack(spacing: 20) {
-                ReaderCanvasPanel(book: book)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+        GeometryReader { geo in
+            HStack(alignment: .top, spacing: 20) {
+                VStack(spacing: 20) {
+                    ReaderCanvasPanel(book: book)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
 
-                FloatingReadingControls(book: book)
+                    FloatingReadingControls(book: book)
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+
+                if ListrAdaptiveLayout.showsFindingsRail(forAvailableWidth: geo.size.width) {
+                    FindingsRail(book: book)
+                        .frame(width: ListrAdaptiveLayout.findingsRailWidth)
+                        .frame(maxHeight: .infinity)
+                }
             }
-
-            FindingsRail(book: book)
-                .frame(width: 300)
-                .frame(maxHeight: .infinity)
+            .frame(width: geo.size.width, height: geo.size.height, alignment: .topLeading)
         }
     }
 }
@@ -320,58 +326,59 @@ private struct FloatingReadingControls: View {
             }
             .disabled(!isCurrentBookLoaded)
 
-            HStack(spacing: 10) {
-                RoundControl("backward.end.fill", disabled: previousChapter == nil, help: "Previous chapter", action: playPrevious)
-                RoundControl("gobackward.15", disabled: !isCurrentBookLoaded, help: "Back 15 seconds") {
-                    playbackStore.skip(seconds: -15)
-                }
-                Button {
-                    if isCurrentBookLoaded {
-                        playbackStore.togglePlayPause()
-                    } else if let chapter = firstPlayableChapter {
-                        playbackStore.play(bookID: book.id, chapter: chapter, speed: conversionStore.speed)
+            // ponytail: horizontal scroll when the control strip is wider than the card; upgrade to wrap layout if needed
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 10) {
+                    RoundControl("backward.end.fill", disabled: previousChapter == nil, help: "Previous chapter", action: playPrevious)
+                    RoundControl("gobackward.15", disabled: !isCurrentBookLoaded, help: "Back 15 seconds") {
+                        playbackStore.skip(seconds: -15)
                     }
-                } label: {
-                    Image(systemName: isCurrentBookLoaded && playbackStore.isPlaying ? "pause.fill" : "play.fill")
-                        .font(.system(size: 16, weight: .bold))
-                        .frame(width: 46, height: 46)
-                        .foregroundStyle(.white)
-                        .background(ListrTheme.ink, in: Circle())
-                }
-                .buttonStyle(.plain)
-                .disabled(firstPlayableChapter == nil && !isCurrentBookLoaded)
-                .keyboardShortcut(.space, modifiers: [])
-                .help("Play or pause")
-                RoundControl("goforward.15", disabled: !isCurrentBookLoaded, help: "Forward 15 seconds") {
-                    playbackStore.skip(seconds: 15)
-                }
-                RoundControl("forward.end.fill", disabled: nextChapter == nil, help: "Next chapter", action: playNext)
-                RoundControl(overlayStore.isPresented ? "macwindow.badge.plus" : "macwindow", disabled: false, help: "Toggle reading overlay") {
-                    overlayStore.toggle()
-                }
-
-                Spacer()
-
-                if libraryStore.isConverting {
-                    Button("Cancel") { libraryStore.cancelConversion() }
-                        .buttonStyle(ListrPillButtonStyle(prominent: false))
-                        .help("Stop conversion")
-                        .fixedSize()
-                } else {
-                    if libraryStore.canRegenerateSelectedBook {
-                        Button("Regenerate") { isConfirmingRegenerate = true }
-                            .buttonStyle(ListrPillButtonStyle(prominent: false))
-                            .help("Delete generated audio and convert again")
-                            .fixedSize()
-                    }
-
-                    if libraryStore.canConvertSelectedBook {
-                        Button("Convert") {
-                            libraryStore.convertSelectedBook(configuration: conversionStore.activeConfiguration)
+                    Button {
+                        if isCurrentBookLoaded {
+                            playbackStore.togglePlayPause()
+                        } else if let chapter = firstPlayableChapter {
+                            playbackStore.play(bookID: book.id, chapter: chapter, speed: conversionStore.speed)
                         }
-                        .buttonStyle(ListrPillButtonStyle())
-                        .help("Convert chapters to audio")
-                        .fixedSize()
+                    } label: {
+                        Image(systemName: isCurrentBookLoaded && playbackStore.isPlaying ? "pause.fill" : "play.fill")
+                            .font(.system(size: 16, weight: .bold))
+                            .frame(width: 46, height: 46)
+                            .foregroundStyle(.white)
+                            .background(ListrTheme.ink, in: Circle())
+                    }
+                    .buttonStyle(.plain)
+                    .disabled(firstPlayableChapter == nil && !isCurrentBookLoaded)
+                    .keyboardShortcut(.space, modifiers: [])
+                    .help("Play or pause")
+                    RoundControl("goforward.15", disabled: !isCurrentBookLoaded, help: "Forward 15 seconds") {
+                        playbackStore.skip(seconds: 15)
+                    }
+                    RoundControl("forward.end.fill", disabled: nextChapter == nil, help: "Next chapter", action: playNext)
+                    RoundControl(overlayStore.isPresented ? "macwindow.badge.plus" : "macwindow", disabled: false, help: "Toggle reading overlay") {
+                        overlayStore.toggle()
+                    }
+
+                    if libraryStore.isConverting {
+                        Button("Cancel") { libraryStore.cancelConversion() }
+                            .buttonStyle(ListrPillButtonStyle(prominent: false))
+                            .help("Stop conversion")
+                            .fixedSize()
+                    } else {
+                        if libraryStore.canRegenerateSelectedBook {
+                            Button("Regenerate") { isConfirmingRegenerate = true }
+                                .buttonStyle(ListrPillButtonStyle(prominent: false))
+                                .help("Delete generated audio and convert again")
+                                .fixedSize()
+                        }
+
+                        if libraryStore.canConvertSelectedBook {
+                            Button("Convert") {
+                                libraryStore.convertSelectedBook(configuration: conversionStore.activeConfiguration)
+                            }
+                            .buttonStyle(ListrPillButtonStyle())
+                            .help("Convert chapters to audio")
+                            .fixedSize()
+                        }
                     }
                 }
             }

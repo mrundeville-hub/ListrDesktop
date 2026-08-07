@@ -11,17 +11,21 @@ struct ContentView: View {
         ZStack {
             ListrTheme.paper.ignoresSafeArea()
 
-            HStack(alignment: .top, spacing: 20) {
-                SidebarView(selection: $libraryStore.selectedBookID) {
-                    isImporterPresented = true
-                }
-                .frame(width: 280)
+            GeometryReader { geo in
+                HStack(alignment: .top, spacing: 20) {
+                    SidebarView(selection: $libraryStore.selectedBookID) {
+                        isImporterPresented = true
+                    }
+                    .frame(width: ListrAdaptiveLayout.sidebarWidth(forAvailableWidth: geo.size.width))
 
-                DetailView(book: libraryStore.selectedBook)
+                    DetailView(book: libraryStore.selectedBook)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                }
+                .padding(.horizontal, 20)
+                .padding(.top, 30) // just clears the traffic lights, which end around y=26
+                .padding(.bottom, 20)
+                .frame(width: geo.size.width, height: geo.size.height, alignment: .topLeading)
             }
-            .padding(.horizontal, 20)
-            .padding(.top, 30) // just clears the traffic lights, which end around y=26
-            .padding(.bottom, 20)
         }
         .tint(ListrTheme.ink)
         .fileImporter(
