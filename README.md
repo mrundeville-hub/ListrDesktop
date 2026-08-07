@@ -1,23 +1,29 @@
 # ListrDesktop
 
-Native macOS desktop app for converting books into local narrated audio.
+Native macOS app that turns books into local narrated audio.
 
-## Current State
+## Features
 
-Phase 3 listening loop baseline is in place:
+- Import **FB2**, **EPUB**, and **TXT**
+- Three narration engines: **System**, **Piper**, and **Command**
+- Resumable per-chapter conversion with cancel / retry
+- Chapter playback with seek, skip, speed, and resume position
+- Floating **Reading Overlay** window for listening while you work
 
-- SwiftPM macOS app scaffold.
-- SwiftUI `NavigationSplitView` library/detail layout.
-- Settings surface for narration defaults and low-load conversion controls.
-- Three narration engines: macOS system voices, local Piper, and a command engine that runs any
-  CLI model (edge-tts, Silero, XTTS…). See `docs/VOICES.md` for setup and quality tradeoffs.
-- FB2, EPUB, and TXT file import foundation.
-- JSON library persistence in Application Support.
-- System voice chapter export with resumable per-chapter audio files.
-- One-book conversion flow with cancel/error handling.
-- AVFoundation chapter playback with seek, skip, playback speed, and resume position.
-- Parser, persistence, conversion, cancellation, failure, and resume-position tests.
-- Production plan in `docs/PRODUCTION_PLAN.md`.
+## Voice engines
+
+| Engine | Mode | Notes |
+| --- | --- | --- |
+| **System** | Offline | macOS system voices (AVSpeech) |
+| **Piper** | Offline | Local Piper neural voices (onnx) |
+| **Command** | Depends on tool | Any CLI that reads `{text_file}` and writes `{output}` — e.g. edge-tts, Silero, XTTS |
+
+Setup details and quality tradeoffs: [`docs/VOICES.md`](docs/VOICES.md).
+
+## Requirements
+
+- macOS 14+
+- Xcode / Swift toolchain able to build SwiftPM packages
 
 ## Build
 
@@ -31,12 +37,12 @@ swift build
 swift run ListrDesktop
 ```
 
-For the normal macOS app launch path, use:
+Or as a normal macOS `.app`:
 
 ```bash
 script/build_and_run.sh
 ```
 
-## Next Milestone
+## License
 
-Production hardening: real-book import fixtures, long-book system TTS smoke tests, packaging/signing decisions, and notarization.
+MIT
