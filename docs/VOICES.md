@@ -86,11 +86,30 @@ Once that folder exists, Settings → Command → Presets offers **Silero v5, Xe
 
 Output format: `wav`. Other speakers: `baya`, `kseniya`, `aidar`. The first run downloads the model.
 
+### Qwen3-TTS — most natural offline voice, Apple silicon only
+
+Runs through [mlx-audio](https://github.com/Blaizzy/mlx-audio). Apache-2.0. Reads Russian and
+English in the same text. Slower than Piper: about 1.7× faster than real time on an M-series Mac
+(a 75-second chapter took 44 seconds here), so a long book takes hours.
+
+```bash
+uv venv --python 3.12 .tools/mlx-venv
+uv pip install -p .tools/mlx-venv mlx-audio
+```
+
+Once that folder exists, Settings → Command → Presets offers **Qwen3-TTS, Serena** and
+**Qwen3-TTS, Ryan**. They run [`script/qwen_tts.py`](../script/qwen_tts.py):
+
+```
+.tools/mlx-venv/bin/python script/qwen_tts.py {text_file} {output} serena
+```
+
+Output format: `wav`. The first run downloads the model (about 1 GB).
+
 ### Other models that speak Russian (checked November 2026, not tested in this app)
 
 | Model | Runs | License | Notes |
 | --- | --- | --- | --- |
-| Qwen3-TTS (`mlx-audio`) | Apple silicon, local | Apache-2.0 | 10 languages incl. Russian, voice cloning; `mlx_audio.tts.generate --model mlx-community/Qwen3-TTS-12Hz-1.7B-CustomVoice-8bit` |
 | Chatterbox Multilingual | local, wants a GPU | MIT | 23 languages incl. Russian, voice cloning |
 | F5-TTS Russian fine-tunes (ESpeech) | local, wants a GPU | varies | highest-rated open Russian quality in roundups |
 | XTTS-v2 (`coqui-tts` fork) | local, slow on CPU | non-commercial | original Coqui is shut down |
@@ -106,7 +125,7 @@ The highlight follows timings saved next to each chapter's audio:
 | --- | --- | --- |
 | System | exact per word | the voice reports where every word starts |
 | Piper | exact per sentence or clause | Listr synthesizes piece by piece through Piper's Python API |
-| Silero preset | exact per sentence or clause | the script writes `{output}.segments.json` |
+| Silero and Qwen3-TTS presets | exact per sentence or clause | the scripts write `{output}.segments.json` |
 | Other commands | estimated | spread over the whole chapter by word length and punctuation |
 
 A custom command can opt in by writing `{output}.segments.json`: a JSON array of
