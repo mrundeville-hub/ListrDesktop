@@ -30,6 +30,11 @@ struct Book: Identifiable, Hashable, Sendable, Codable {
         chapters.filter(\.isReady)
     }
 
+    /// Where "Play" should start: the chapter last left mid-way, else the first playable one.
+    var resumeChapter: Chapter? {
+        playableChapters.last { ($0.resumePosition ?? 0) > 0 } ?? playableChapters.first
+    }
+
     func chapter(after chapterID: Chapter.ID) -> Chapter? {
         let playable = playableChapters
         guard let index = playable.firstIndex(where: { $0.id == chapterID }), index + 1 < playable.count else {

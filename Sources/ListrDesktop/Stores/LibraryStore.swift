@@ -17,8 +17,10 @@ final class LibraryStore {
     @ObservationIgnored private let ttsService: any TTSService
     @ObservationIgnored private let audioRootURL: URL
     @ObservationIgnored private var hasLoadedPersistedLibrary = false
-    @ObservationIgnored private var conversionTask: Task<Void, Never>?
+    private var conversionTask: Task<Void, Never>? // observed: drives isConverting in the UI
     @ObservationIgnored private var convertingBookID: Book.ID?
+    @ObservationIgnored private var conversionGeneration = 0
+    @ObservationIgnored private var saveTask: Task<Void, Never>?
 
     init(
         books: [Book] = [],
@@ -40,6 +42,10 @@ final class LibraryStore {
 
     var isConverting: Bool {
         conversionTask != nil
+    }
+
+    var isConvertingSelectedBook: Bool {
+        isConverting && convertingBookID == selectedBookID
     }
 
     var canConvertSelectedBook: Bool {
@@ -126,11 +132,16 @@ final class LibraryStore {
         guard conversionTask == nil, let selectedBookID else { return nil }
         conversionError = nil
         convertingBookID = selectedBookID
+        conversionGeneration += 1
+        let generation = conversionGeneration
         conversionTask = Task { [weak self] in
             guard let self else { return }
             defer {
-                self.conversionTask = nil
-                self.convertingBookID = nil
+                // A cancelled run winding down must not clear the state of the run started after it.
+                if generation == self.conversionGeneration {
+                    self.conversionTask = nil
+                    self.convertingBookID = nil
+                }
             }
             await self.convertBook(id: selectedBookID, configuration: configuration)
         }
@@ -204,6 +215,10 @@ final class LibraryStore {
             return
         }
 
+        // ponytail: persisted every 5 s of playback, not every tick — the library file holds
+        // every chapter's text, so a quit mid-chapter can lose up to 5 s of position.
+        let previous = books[bookIndex].chapters[chapterIndex].resumePosition ?? 0
+        guard position <= 0 || abs(position - previous) >= 5 else { return }
         books[bookIndex].chapters[chapterIndex].resumePosition = max(position, 0)
         saveLibrary()
     }
@@ -256,7 +271,7 @@ final class LibraryStore {
 
                 temporaryURL = finalURL
                     .deletingLastPathComponent()
-                    .appendingPathComponent(".\(finalURL.lastPathComponent).tmp.aiff")
+                    .appendingPathComponent(".tmp-\(finalURL.lastPathComponent)") // keeps the real extension
                 let synthesizedURL = try await ttsService.synthesize(
                     chapterText: chapter.text,
                     configuration: configuration,
@@ -269,12 +284,14 @@ final class LibraryStore {
                     return
                 }
 
+                let segments = TimingSegment.takeSidecar(for: synthesizedURL)
                 try moveAtomically(from: synthesizedURL, to: finalURL)
                 books[bookIndex].chapters[chapterIndex].audioPath = finalURL.path
                 books[bookIndex].chapters[chapterIndex].timingPath = try ensureTimingFile(
                     bookID: bookID,
                     chapter: books[bookIndex].chapters[chapterIndex],
-                    audioURL: finalURL
+                    audioURL: finalURL,
+                    segments: segments
                 ).path
                 books[bookIndex].chapters[chapterIndex].lastError = nil
                 books[bookIndex].chapters[chapterIndex].status = .ready
@@ -458,7 +475,12 @@ final class LibraryStore {
         try FileManager.default.moveItem(at: replacementURL, to: destinationURL)
     }
 
-    private func ensureTimingFile(bookID: Book.ID, chapter: Chapter, audioURL: URL) throws -> URL {
+    private func ensureTimingFile(
+        bookID: Book.ID,
+        chapter: Chapter,
+        audioURL: URL,
+        segments: [TimingSegment] = []
+    ) throws -> URL {
         if let timingPath = chapter.timingPath, FileManager.default.fileExists(atPath: timingPath) {
             return URL(fileURLWithPath: timingPath)
         }
@@ -466,7 +488,8 @@ final class LibraryStore {
         let timingURL = try chapterTimingURL(bookID: bookID, chapter: chapter)
         let timing = ChapterTimingBuilder.build(
             text: chapter.text,
-            duration: audioDuration(at: audioURL)
+            duration: audioDuration(at: audioURL),
+            segments: segments
         )
         let data = try JSONEncoder.listrTiming.encode(timing)
         try data.write(to: timingURL, options: .atomic)
@@ -489,7 +512,9 @@ final class LibraryStore {
     private func saveLibrary() {
         guard let persistence else { return }
         let snapshot = PersistedLibrary(books: books, selectedBookID: selectedBookID)
-        Task.detached(priority: .utility) {
+        // Chained so an older snapshot can never land on disk after a newer one.
+        saveTask = Task.detached(priority: .utility) { [previous = saveTask] in
+            await previous?.value
             try? persistence.save(snapshot)
         }
     }

@@ -1,8 +1,8 @@
 import AppKit
 import Foundation
 
-// Adapted from ribbon/script/generate_app_icon.swift — same iconset → iconutil flow,
-// Listr's electric blue and cream instead of ribbon's Klein blue.
+// Listr's icon in the "air" style of the app: a near-white tile with soft washes of color and
+// one black disc carrying three level bars — the app's play button, speaking.
 let outputDirectory = URL(fileURLWithPath: CommandLine.arguments.dropFirst().first ?? "Resources/AppIcon.iconset")
 let iconOutput = URL(fileURLWithPath: CommandLine.arguments.dropFirst().dropFirst().first ?? "Resources/AppIcon.icns")
 
@@ -10,8 +10,14 @@ let fileManager = FileManager.default
 try? fileManager.removeItem(at: outputDirectory)
 try fileManager.createDirectory(at: outputDirectory, withIntermediateDirectories: true)
 
-let electricBlue = NSColor(calibratedRed: 0.15, green: 0.36, blue: 0.96, alpha: 1.0)
-let cream = NSColor(calibratedRed: 1.0, green: 0.97, blue: 0.88, alpha: 1.0)
+let paper = NSColor(calibratedRed: 0.96, green: 0.96, blue: 0.97, alpha: 1.0)
+let ink = NSColor(calibratedRed: 0.114, green: 0.114, blue: 0.122, alpha: 1.0)
+// Soft blobs: color, center (fractions of the tile, origin bottom-left), radius fraction.
+let blobs: [(NSColor, CGFloat, CGFloat, CGFloat)] = [
+    (NSColor(calibratedRed: 1.00, green: 0.62, blue: 0.82, alpha: 0.95), 0.22, 0.80, 0.62),
+    (NSColor(calibratedRed: 0.72, green: 0.64, blue: 1.00, alpha: 0.95), 0.84, 0.70, 0.60),
+    (NSColor(calibratedRed: 1.00, green: 0.80, blue: 0.62, alpha: 0.95), 0.52, 0.10, 0.62),
+]
 
 let iconFiles: [(name: String, pixels: Int)] = [
     ("icon_16x16.png", 16),
@@ -51,15 +57,25 @@ func drawIcon(pixels: Int, to url: URL) throws {
     let rect = NSRect(x: inset, y: inset, width: size - inset * 2, height: size - inset * 2)
     let radius = size * 0.205
     NSBezierPath(roundedRect: rect, xRadius: radius, yRadius: radius).setClip()
-    electricBlue.setFill()
+    paper.setFill()
     rect.fill()
+    for (color, x, y, radiusFraction) in blobs {
+        let center = NSPoint(x: rect.minX + rect.width * x, y: rect.minY + rect.height * y)
+        NSGradient(starting: color, ending: color.withAlphaComponent(0))?.draw(
+            fromCenter: center, radius: 0, toCenter: center, radius: rect.width * radiusFraction, options: []
+        )
+    }
 
-    // Three stacked bars, tallest in the middle — a book spine read as a level meter.
-    let barWidth = size * 0.11
-    let gap = size * 0.075
+    let disc = size * 0.46
+    ink.setFill()
+    NSBezierPath(ovalIn: NSRect(x: (size - disc) / 2, y: (size - disc) / 2, width: disc, height: disc)).fill()
+
+    // Three bars, tallest in the middle — a book spine read as a level meter.
+    let barWidth = size * 0.052
+    let gap = size * 0.042
     let centerX = size * 0.5
-    let heights: [CGFloat] = [0.28, 0.46, 0.34]
-    cream.setFill()
+    let heights: [CGFloat] = [0.13, 0.22, 0.16]
+    NSColor.white.setFill()
     for (index, fraction) in heights.enumerated() {
         let height = size * fraction
         let x = centerX + CGFloat(index - 1) * (barWidth + gap) - barWidth / 2

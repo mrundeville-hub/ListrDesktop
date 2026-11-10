@@ -55,6 +55,55 @@ struct BookImportServiceTests {
     }
 }
 
+extension BookImportServiceTests {
+    @Test("FB2 keeps inline text, separates paragraphs, splits nested sections, skips notes")
+    func importsNestedFB2() throws {
+        let directory = try TemporaryDirectory()
+        let url = directory.url.appending(path: "nested.fb2")
+        try """
+        <?xml version="1.0" encoding="UTF-8"?>
+        <FictionBook><description><title-info><book-title>Nested</book-title></title-info></description>
+        <body><section><title><p>Part One</p></title>
+        <section><title><p>Alpha</p></title><p>One <emphasis>loud</emphasis> word.</p><p>Next<a type="note">[1]</a> line.</p></section>
+        <section><title><p>Beta</p></title><p>Second text.</p></section>
+        </section></body>
+        <body name="notes"><section><p>Footnote text.</p></section></body>
+        </FictionBook>
+        """.write(to: url, atomically: true, encoding: .utf8)
+
+        let book = try BookImportService().importBook(from: url)
+
+        #expect(book.chapters.map(\.title) == ["Alpha", "Beta"])
+        #expect(book.chapters[0].text == "One loud word. Next line.")
+        #expect(book.chapters.map(\.index) == [1, 2])
+    }
+
+    @Test("TXT in Windows-1251 imports as Russian text, not garbage")
+    func importsCP1251Text() throws {
+        let directory = try TemporaryDirectory()
+        let url = directory.url.appending(path: "book.txt")
+        try #require("Привет, мир".data(using: .windowsCP1251)).write(to: url)
+
+        let book = try BookImportService().importBook(from: url)
+
+        #expect(book.chapters[0].text == "Привет, мир")
+    }
+
+    @Test("EPUB drops <head> text and decodes named and hex entities")
+    func cleansEPUBHTML() throws {
+        let directory = try TemporaryDirectory()
+        let url = directory.url.appending(path: "head.epub")
+        let archive = try Archive(url: url, accessMode: .create)
+        try archive.addData("META-INF/container.xml", #"<container><rootfiles><rootfile full-path="c.opf"/></rootfiles></container>"#)
+        try archive.addData("c.opf", #"<package><manifest><item id="a" href="a.xhtml"/></manifest><spine><itemref idref="a"/></spine></package>"#)
+        try archive.addData("a.xhtml", "<html><head><title>HEADTITLE</title></head><body><h1>T</h1><p>&laquo;Да&raquo; &#x2014; &amp;lt;</p></body></html>")
+
+        let book = try BookImportService().importBook(from: url)
+
+        #expect(book.chapters[0].text == "T «Да» — &lt;")
+    }
+}
+
 private let fb2Fixture = """
 <?xml version="1.0" encoding="UTF-8"?>
 <FictionBook>

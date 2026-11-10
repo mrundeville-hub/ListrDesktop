@@ -32,6 +32,10 @@ for v in denis dmitri ruslan; do
 done
 ```
 
+Piper now lives at [OHF-Voice/piper1-gpl](https://github.com/OHF-Voice/piper1-gpl) (GPL-3; the old
+`rhasspy/piper` repo is archived). Update the bundled copy with
+`.tools/piper-venv/bin/pip install -U piper-tts` — existing `.onnx` voices keep working.
+
 Quality: clearly better than Milena Compact, roughly "good podcast" level. Fully offline, ~1× realtime on Apple silicon.
 
 ## 3. Command engine (anything with a CLI)
@@ -59,24 +63,55 @@ edge-tts --voice ru-RU-SvetlanaNeural --file {text_file} --write-media {output}
 Output format: `mp3`. Voices: `ru-RU-SvetlanaNeural` (female), `ru-RU-DmitryNeural` (male).
 This is a cloud call — the only engine here that leaves the machine.
 
-### Silero — best offline quality
+Needs edge-tts **7.3.1 or newer**: older versions are rejected by Microsoft with `403`
+(`pip install -U edge-tts`). It is an unofficial endpoint, so a chapter can occasionally fail with
+"No audio was received" — press **Convert** again and it resumes from that chapter.
+
+### Silero v5 — best offline quality for Russian
+
+Built for Russian; the v5 models place stress and resolve homographs by themselves.
+Non-commercial license. Latin-script words (English names, titles) are skipped, not read.
 
 ```bash
-uv tool install torch  # heavy; a venv with torch + a small wrapper script
+uv venv --python 3.12 .tools/silero-venv
+uv pip install -p .tools/silero-venv silero scipy
 ```
 
-Write `silero.py` that reads `sys.argv[1]`, synthesizes with the `v4_ru` model, writes `sys.argv[2]`, then:
+Once that folder exists, Settings → Command → Presets offers **Silero v5, Xenia** and
+**Silero v5, Eugene**. They run [`script/silero_tts.py`](../script/silero_tts.py):
 
 ```
-python3 /path/to/silero.py {text_file} {output}
+.tools/silero-venv/bin/python script/silero_tts.py {text_file} {output} xenia
 ```
 
-Output format: `wav`.
+Output format: `wav`. Other speakers: `baya`, `kseniya`, `aidar`. The first run downloads the model.
 
-### Any other model
+### Other models that speak Russian (checked November 2026, not tested in this app)
 
-XTTS-v2, F5-TTS, Kokoro, Vosk-TTS — all work the same way as long as they expose a command that
-reads a text file and writes an audio file.
+| Model | Runs | License | Notes |
+| --- | --- | --- | --- |
+| Qwen3-TTS (`mlx-audio`) | Apple silicon, local | Apache-2.0 | 10 languages incl. Russian, voice cloning; `mlx_audio.tts.generate --model mlx-community/Qwen3-TTS-12Hz-1.7B-CustomVoice-8bit` |
+| Chatterbox Multilingual | local, wants a GPU | MIT | 23 languages incl. Russian, voice cloning |
+| F5-TTS Russian fine-tunes (ESpeech) | local, wants a GPU | varies | highest-rated open Russian quality in roundups |
+| XTTS-v2 (`coqui-tts` fork) | local, slow on CPU | non-commercial | original Coqui is shut down |
+
+Kokoro does **not** support Russian. Anything above works through the Command engine as long as
+you wrap it in a command that reads a text file and writes an audio file.
+
+## Word highlight accuracy
+
+The highlight follows timings saved next to each chapter's audio:
+
+| Engine | Timing | How |
+| --- | --- | --- |
+| System | exact per word | the voice reports where every word starts |
+| Piper | exact per sentence or clause | Listr synthesizes piece by piece through Piper's Python API |
+| Silero preset | exact per sentence or clause | the script writes `{output}.segments.json` |
+| Other commands | estimated | spread over the whole chapter by word length and punctuation |
+
+A custom command can opt in by writing `{output}.segments.json`: a JSON array of
+`{"location", "length", "start", "end"}` — UTF-16 offsets into the text file, seconds in the audio.
+Chapters converted before this existed keep their estimated timings until you **Regenerate Audio**.
 
 ## Comparing voices
 

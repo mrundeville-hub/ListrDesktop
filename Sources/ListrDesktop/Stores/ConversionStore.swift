@@ -28,16 +28,9 @@ final class ConversionStore {
         didSet { defaults.set(speed, forKey: Keys.speed) }
     }
 
-    var maxParallelJobs: Int {
-        didSet { defaults.set(maxParallelJobs, forKey: Keys.maxParallelJobs) }
-    }
-
-    var preserveBattery: Bool {
-        didSet { defaults.set(preserveBattery, forKey: Keys.preserveBattery) }
-    }
-
-    var generateWordTimings: Bool {
-        didSet { defaults.set(generateWordTimings, forKey: Keys.generateWordTimings) }
+    /// Folder scanned for Piper voices. Stored (not derived) so editing it refreshes the voice menu.
+    var piperVoicesDirectory: String {
+        didSet { defaults.set(piperVoicesDirectory, forKey: Keys.piperVoicesDirectory) }
     }
 
     var customCommand: String {
@@ -58,22 +51,14 @@ final class ConversionStore {
         piperModelPath = defaults.string(forKey: Keys.piperModelPath) ?? Self.defaultPiperModelPath
         piperConfigPath = defaults.string(forKey: Keys.piperConfigPath) ?? Self.defaultPiperConfigPath
         speed = defaults.object(forKey: Keys.speed) as? Double ?? 1.0
-        maxParallelJobs = defaults.object(forKey: Keys.maxParallelJobs) as? Int ?? 1
-        preserveBattery = defaults.object(forKey: Keys.preserveBattery) as? Bool ?? true
-        generateWordTimings = defaults.object(forKey: Keys.generateWordTimings) as? Bool ?? true
+        piperVoicesDirectory = defaults.string(forKey: Keys.piperVoicesDirectory)
+            ?? Self.defaultPiperVoicesDirectory
         customCommand = defaults.string(forKey: Keys.customCommand) ?? ""
         customOutputExtension = defaults.string(forKey: Keys.customOutputExtension) ?? "wav"
 
         if !availableEngines.contains(selectedEngine) {
             selectedEngine = .system
         }
-    }
-
-    var estimatedLoad: String {
-        if preserveBattery || maxParallelJobs == 1 {
-            return "Light background load"
-        }
-        return "Faster conversion, higher CPU use"
     }
 
     var installedSystemVoices: [SystemVoiceOption] {
@@ -145,21 +130,6 @@ final class ConversionStore {
             .sorted { $0.name < $1.name }
     }
 
-    /// Folder scanned for voices — the parent of the current model, so it follows a manual override.
-    var piperVoicesDirectory: String {
-        get {
-            if let stored = defaults.string(forKey: Keys.piperVoicesDirectory), !stored.isEmpty {
-                return stored
-            }
-            guard !piperModelPath.isEmpty else { return Self.defaultPiperVoicesDirectory }
-            return URL(fileURLWithPath: piperModelPath)
-                .deletingLastPathComponent()
-                .deletingLastPathComponent()
-                .path
-        }
-        set { defaults.set(newValue, forKey: Keys.piperVoicesDirectory) }
-    }
-
     var selectedPiperVoiceName: String {
         guard !piperModelPath.isEmpty else { return "No voice selected" }
         return URL(fileURLWithPath: piperModelPath).deletingPathExtension().lastPathComponent
@@ -204,7 +174,7 @@ final class ConversionStore {
         defaultProjectRoot.appendingPathComponent(".tools/piper-voices").path
     }
 
-    private static var defaultProjectRoot: URL {
+    static var defaultProjectRoot: URL {
         let bundleURL = Bundle.main.bundleURL
         if bundleURL.pathExtension == "app" {
             let candidate = bundleURL.deletingLastPathComponent().deletingLastPathComponent()
@@ -252,9 +222,6 @@ private enum Keys {
     static let piperModelPath = "conversion.piperModelPath"
     static let piperConfigPath = "conversion.piperConfigPath"
     static let speed = "conversion.speed"
-    static let maxParallelJobs = "conversion.maxParallelJobs"
-    static let preserveBattery = "conversion.preserveBattery"
-    static let generateWordTimings = "conversion.generateWordTimings"
     static let customCommand = "conversion.customCommand"
     static let customOutputExtension = "conversion.customOutputExtension"
     static let piperVoicesDirectory = "conversion.piperVoicesDirectory"

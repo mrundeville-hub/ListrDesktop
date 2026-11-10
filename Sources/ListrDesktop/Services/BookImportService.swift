@@ -49,7 +49,10 @@ struct BookImportService: Sendable {
 
 private struct PlainTextBookParser {
     func parse(url: URL) throws -> ImportedBook {
-        let text = try String(contentsOf: url, encoding: .utf8)
+        // Russian .txt books are as often Windows-1251 as UTF-8.
+        guard let text = TextCleaner.decodeHTML(try Data(contentsOf: url)) else {
+            throw BookImportError.unreadableFile
+        }
         let cleaned = TextCleaner.clean(text)
         guard !cleaned.isEmpty else { throw BookImportError.emptyBook }
 
@@ -95,6 +98,8 @@ private final class FB2XMLDelegate: NSObject, XMLParserDelegate {
     private var middleName = ""
     private var lastName = ""
     private var sectionDepth = 0
+    private var isInNotesBody = false
+    private static let textElements: Set<String> = ["p", "subtitle", "text-author", "v"]
     private var chapterTitle = ""
     private var chapterText = ""
 
@@ -117,11 +122,12 @@ private final class FB2XMLDelegate: NSObject, XMLParserDelegate {
 
     func parser(_ parser: XMLParser, didStartElement elementName: String, namespaceURI: String?, qualifiedName qName: String?, attributes attributeDict: [String: String] = [:]) {
         path.append(elementName)
+        if elementName == "body", attributeDict["name"] == "notes" {
+            isInNotesBody = true // footnotes are not chapters
+        }
         if elementName == "section", isInBody {
-            if sectionDepth == 0 {
-                chapterTitle = ""
-                chapterText = ""
-            }
+            // Every section is its own chapter, so "Part → Chapter" books keep their chapters.
+            appendChapter()
             sectionDepth += 1
         }
     }
@@ -149,22 +155,34 @@ private final class FB2XMLDelegate: NSObject, XMLParserDelegate {
             if !cleanedTitle.isEmpty { title = cleanedTitle }
         }
 
-        if elementName == "section", isInBody {
-            sectionDepth -= 1
-            if sectionDepth == 0 {
-                appendChapter()
+        if sectionDepth > 0, Self.textElements.contains(elementName) {
+            // Paragraphs carry no whitespace of their own; without this they fuse together.
+            if path.contains("title") {
+                chapterTitle += " "
+            } else {
+                chapterText += "\n"
+                fullText += "\n"
             }
+        }
+
+        if elementName == "section", isInBody {
+            appendChapter()
+            sectionDepth -= 1
+        }
+        if elementName == "body" {
+            isInNotesBody = false
         }
         _ = path.popLast()
     }
 
     private var isInBody: Bool {
-        path.contains("body")
+        path.contains("body") && !isInNotesBody
     }
 
     private var shouldCollectBodyText: Bool {
-        guard isInBody else { return false }
-        return ["p", "subtitle", "text-author", "v"].contains(path.last)
+        // Any depth, so <emphasis>/<strong> inside a paragraph is kept; <a> is a footnote marker.
+        guard isInBody, !path.contains("a") else { return false }
+        return path.contains(where: Self.textElements.contains)
     }
 
     private func pathSuffix(_ suffix: [String]) -> Bool {
@@ -173,8 +191,10 @@ private final class FB2XMLDelegate: NSObject, XMLParserDelegate {
 
     private func appendChapter() {
         let text = TextCleaner.clean(chapterText)
-        guard !text.isEmpty else { return }
         let cleanedTitle = TextCleaner.clean(chapterTitle)
+        chapterTitle = ""
+        chapterText = ""
+        guard !text.isEmpty else { return }
         chapters.append(Chapter(
             id: UUID(),
             index: chapters.count + 1,
@@ -321,7 +341,7 @@ private final class EPUBPackageParser: NSObject, XMLParserDelegate {
         path.append(elementName)
         if elementName == "item", let id = attributeDict["id"], let href = attributeDict["href"] {
             manifest[id] = href
-        } else if elementName == "itemref", let idref = attributeDict["idref"] {
+        } else if elementName == "itemref", let idref = attributeDict["idref"], attributeDict["linear"] != "no" {
             spineIDs.append(idref)
         }
     }
@@ -352,10 +372,13 @@ private enum ChapterSplitter {
         let separators = ["\n\n# ", "\n\nChapter ", "\n\nГлава "]
         for separator in separators where cleaned.contains(separator) {
             let parts = cleaned.components(separatedBy: separator)
-            return parts.enumerated().compactMap { index, part in
-                let chapterText = TextCleaner.clean(index == 0 ? part : separator.trimmingCharacters(in: .whitespacesAndNewlines) + part)
-                guard !chapterText.isEmpty else { return nil }
-                return Chapter(id: UUID(), index: index + 1, title: "Chapter \(index + 1)", text: chapterText, status: .pending, audioPath: nil, timingPath: nil)
+            let texts = parts.enumerated()
+                .map { index, part in
+                    TextCleaner.clean(index == 0 ? part : separator.trimmingCharacters(in: .whitespacesAndNewlines) + part)
+                }
+                .filter { !$0.isEmpty }
+            return texts.enumerated().map { index, chapterText in
+                Chapter(id: UUID(), index: index + 1, title: "Chapter \(index + 1)", text: chapterText, status: .pending, audioPath: nil, timingPath: nil)
             }
         }
 
@@ -370,8 +393,10 @@ private enum TextCleaner {
             return decoded
         }
 
+        // UTF-16 only with a BOM: without one it "decodes" any even-length CP1251 file into garbage.
+        let hasUTF16BOM = data.starts(with: [0xFF, 0xFE]) || data.starts(with: [0xFE, 0xFF])
         return String(data: data, encoding: .utf8)
-            ?? String(data: data, encoding: .utf16)
+            ?? (hasUTF16BOM ? String(data: data, encoding: .utf16) : nil)
             ?? String(data: data, encoding: .windowsCP1251)
             ?? String(data: data, encoding: .isoLatin1)
     }
@@ -387,8 +412,8 @@ private enum TextCleaner {
 
     static func htmlToText(_ html: String) -> String {
         var value = html
-        value = value.replacingOccurrences(of: #"<script[\s\S]*?</script>"#, with: " ", options: .regularExpression)
-        value = value.replacingOccurrences(of: #"<style[\s\S]*?</style>"#, with: " ", options: .regularExpression)
+        // <head> goes too: its <title> would otherwise be read aloud at the start of every chapter.
+        value = value.replacingOccurrences(of: #"(?i)<(head|script|style)\b[\s\S]*?</\1>"#, with: " ", options: .regularExpression)
         value = value.replacingOccurrences(of: #"</(p|div|section|chapter|h[1-6]|li)>"#, with: "\n\n", options: .regularExpression)
         value = value.replacingOccurrences(of: #"<[^>]+>"#, with: " ", options: .regularExpression)
         value = decodeEntities(value)
@@ -408,36 +433,31 @@ private enum TextCleaner {
         return title.isEmpty ? nil : title
     }
 
-    private static func decodeEntities(_ value: String) -> String {
-        var decoded = value
-            .replacingOccurrences(of: "&nbsp;", with: " ")
-            .replacingOccurrences(of: "&amp;", with: "&")
-            .replacingOccurrences(of: "&lt;", with: "<")
-            .replacingOccurrences(of: "&gt;", with: ">")
-            .replacingOccurrences(of: "&quot;", with: "\"")
-            .replacingOccurrences(of: "&#39;", with: "'")
-        decoded = replaceNumericEntities(in: decoded)
-        return decoded
-    }
+    private static let namedEntities: [String: String] = [
+        "nbsp": " ", "lt": "<", "gt": ">", "quot": "\"", "apos": "'", "amp": "&", "shy": "",
+        "mdash": "—", "ndash": "–", "hellip": "…", "laquo": "«", "raquo": "»", "copy": "©"
+    ]
 
-    private static func replaceNumericEntities(in value: String) -> String {
-        guard let regex = try? NSRegularExpression(pattern: #"&#(\d+);"#) else {
+    /// Named, decimal and hex entities in one pass, so "&amp;lt;" stays "&lt;".
+    private static func decodeEntities(_ value: String) -> String {
+        guard let regex = try? NSRegularExpression(pattern: #"&(#[xX][0-9A-Fa-f]+|#\d+|[A-Za-z]+);"#) else {
             return value
         }
 
         let nsValue = value as NSString
-        let matches = regex.matches(in: value, range: NSRange(location: 0, length: nsValue.length))
         var result = value
-        for match in matches.reversed() {
-            let codePointText = nsValue.substring(with: match.range(at: 1))
-            guard
-                let codePoint = Int(codePointText),
-                let scalar = UnicodeScalar(codePoint),
-                let range = Range(match.range, in: result)
-            else {
-                continue
+        for match in regex.matches(in: value, range: NSRange(location: 0, length: nsValue.length)).reversed() {
+            let name = nsValue.substring(with: match.range(at: 1))
+            let replacement: String?
+            if name.hasPrefix("#") {
+                let isHex = name.dropFirst().lowercased().hasPrefix("x")
+                let codePoint = isHex ? UInt32(name.dropFirst(2), radix: 16) : UInt32(name.dropFirst())
+                replacement = codePoint.flatMap(UnicodeScalar.init).map(String.init)
+            } else {
+                replacement = namedEntities[name]
             }
-            result.replaceSubrange(range, with: String(scalar))
+            guard let replacement, let range = Range(match.range, in: result) else { continue }
+            result.replaceSubrange(range, with: replacement)
         }
         return result
     }

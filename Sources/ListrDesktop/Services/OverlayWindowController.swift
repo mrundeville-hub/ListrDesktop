@@ -22,7 +22,6 @@ final class OverlayWindowController: NSObject, NSWindowDelegate {
         }
 
         let content = PlaybackOverlayView()
-            .preferredColorScheme(.light) // cloud palette is light-only
             .environment(overlayStore)
             .environment(playbackStore)
             .environment(libraryStore)
@@ -49,7 +48,7 @@ final class OverlayWindowController: NSObject, NSWindowDelegate {
         panel.titleVisibility = .hidden
         panel.titlebarAppearsTransparent = true
         panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .stationary]
-        panel.minSize = NSSize(width: 408, height: 668)
+        panel.minSize = NSSize(width: 368, height: 448)
         panel.setFrameAutosaveName("ListrReadingOverlay")
         panel.center()
         panel.standardWindowButton(.closeButton)?.isHidden = true // card has its own close

@@ -51,9 +51,10 @@ struct TTSConfiguration: Sendable, Equatable {
         case .system: "aiff"
         case .piper: "wav"
         case .custom:
-            customOutputExtension.trimmingCharacters(in: .whitespaces).isEmpty
+            // ".mp3" and " mp3" both mean mp3
+            customOutputExtension.trimmingCharacters(in: CharacterSet(charactersIn: ". ")).isEmpty
                 ? "wav"
-                : customOutputExtension.trimmingCharacters(in: .whitespaces)
+                : customOutputExtension.trimmingCharacters(in: CharacterSet(charactersIn: ". "))
         }
     }
 }
@@ -117,41 +118,24 @@ struct SystemTTSService: TTSService {
             throw TTSError.missingPiperRuntime
         }
 
-        try? FileManager.default.removeItem(at: outputURL)
-        try FileManager.default.createDirectory(
-            at: outputURL.deletingLastPathComponent(),
-            withIntermediateDirectories: true
-        )
-
-        return try await Task.detached(priority: .userInitiated) {
-            let process = Process()
-            process.executableURL = URL(fileURLWithPath: executablePath)
-            process.arguments = [
-                "--model", modelPath,
-                "--config", configPath,
-                "--output_file", outputURL.path
-            ]
-
-            let inputPipe = Pipe()
-            let errorPipe = Pipe()
-            process.standardInput = inputPipe
-            process.standardError = errorPipe
-
-            try process.run()
-            inputPipe.fileHandleForWriting.write(Data(chapterText.utf8))
-            try inputPipe.fileHandleForWriting.close()
-            let errorData = errorPipe.fileHandleForReading.readDataToEndOfFile()
-            process.waitUntilExit()
-
-            guard process.terminationStatus == 0 else {
-                throw TTSError.commandFailed(
-                    status: process.terminationStatus,
-                    message: Self.tail(of: errorData)
-                )
+        let process = Process()
+        let python = URL(fileURLWithPath: executablePath).deletingLastPathComponent().appendingPathComponent("python")
+        return try await run(process, chapterText: chapterText, to: outputURL) { textURL in
+            if FileManager.default.isExecutableFile(atPath: python.path) {
+                // Sentence by sentence through Piper's Python API, so each sentence's exact
+                // position in the audio is known and the word highlight stays in step.
+                let scriptURL = FileManager.default.temporaryDirectory.appendingPathComponent("listr-piper-runner.py")
+                try Data(Self.piperRunnerScript.utf8).write(to: scriptURL, options: .atomic)
+                process.executableURL = python
+                process.arguments = [scriptURL.path, modelPath, configPath, textURL.path, outputURL.path]
+                process.standardInput = FileHandle.nullDevice
+            } else {
+                // Bare piper binary: audio only, timings are estimated.
+                process.executableURL = URL(fileURLWithPath: executablePath)
+                process.arguments = ["--model", modelPath, "--config", configPath, "--output_file", outputURL.path]
+                process.standardInput = try FileHandle(forReadingFrom: textURL)
             }
-            try Self.verifyNonEmptyAudio(at: outputURL)
-            return outputURL
-        }.value
+        }
     }
 
     /// Runs a user-supplied shell command so any local or CLI-driven model can narrate a chapter.
@@ -160,6 +144,25 @@ struct SystemTTSService: TTSService {
         let template = configuration.customCommand.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !template.isEmpty else { throw TTSError.missingCommand }
 
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/bin/sh")
+        process.environment = Self.environmentWithCommonToolPaths()
+        return try await run(process, chapterText: chapterText, to: outputURL) { textURL in
+            process.standardInput = FileHandle.nullDevice
+            process.arguments = ["-c", template
+                .replacingOccurrences(of: "{text_file}", with: Self.shellQuoted(textURL.path))
+                .replacingOccurrences(of: "{output}", with: Self.shellQuoted(outputURL.path))]
+        }
+    }
+
+    /// Writes the chapter to a temp file, runs the process off the main actor and checks it
+    /// produced audio. Cancelling the task terminates the process instead of letting it finish.
+    private func run(
+        _ process: Process,
+        chapterText: String,
+        to outputURL: URL,
+        configure: (URL) throws -> Void
+    ) async throws -> URL {
         try? FileManager.default.removeItem(at: outputURL)
         try FileManager.default.createDirectory(
             at: outputURL.deletingLastPathComponent(),
@@ -169,37 +172,92 @@ struct SystemTTSService: TTSService {
         let textURL = FileManager.default.temporaryDirectory
             .appendingPathComponent("listr-\(UUID().uuidString).txt")
         try Data(chapterText.utf8).write(to: textURL)
+        defer { try? FileManager.default.removeItem(at: textURL) }
+        try configure(textURL)
 
-        let command = template
-            .replacingOccurrences(of: "{text_file}", with: Self.shellQuoted(textURL.path))
-            .replacingOccurrences(of: "{output}", with: Self.shellQuoted(outputURL.path))
+        let errorPipe = Pipe()
+        process.standardError = errorPipe
+        process.standardOutput = FileHandle.nullDevice
 
-        return try await Task.detached(priority: .userInitiated) {
-            defer { try? FileManager.default.removeItem(at: textURL) }
+        let (status, errorData) = try await withTaskCancellationHandler {
+            try await Task.detached(priority: .userInitiated) {
+                try process.run()
+                let errorData = errorPipe.fileHandleForReading.readDataToEndOfFile()
+                process.waitUntilExit()
+                return (process.terminationStatus, errorData)
+            }.value
+        } onCancel: {
+            // ponytail: kills the direct child only; a command that forks its own children
+            // (e.g. `a && b`) keeps the last one running until it exits by itself.
+            if process.isRunning { process.terminate() }
+        }
 
-            let process = Process()
-            process.executableURL = URL(fileURLWithPath: "/bin/sh")
-            process.arguments = ["-c", command]
-            process.environment = Self.environmentWithCommonToolPaths()
-
-            let errorPipe = Pipe()
-            process.standardError = errorPipe
-            process.standardOutput = FileHandle.nullDevice
-
-            try process.run()
-            let errorData = errorPipe.fileHandleForReading.readDataToEndOfFile()
-            process.waitUntilExit()
-
-            guard process.terminationStatus == 0 else {
-                throw TTSError.commandFailed(
-                    status: process.terminationStatus,
-                    message: Self.tail(of: errorData)
-                )
-            }
-            try Self.verifyNonEmptyAudio(at: outputURL)
-            return outputURL
-        }.value
+        if Task.isCancelled {
+            try? FileManager.default.removeItem(at: outputURL)
+            throw CancellationError()
+        }
+        guard status == 0 else {
+            throw TTSError.commandFailed(status: status, message: Self.tail(of: errorData))
+        }
+        try Self.verifyNonEmptyAudio(at: outputURL)
+        return outputURL
     }
+
+    /// Splits the chapter into sentences, synthesizes them one after another into one WAV and
+    /// writes `<output>.segments.json` with where each sentence starts and ends.
+    nonisolated private static let piperRunnerScript = #"""
+    import json, re, sys, wave
+    from piper import PiperVoice
+
+    model, config, text_path, out_path = sys.argv[1:5]
+    text = open(text_path, encoding="utf-8").read()
+    voice = PiperVoice.load(model, config_path=config)
+
+    # Split after punctuation that is followed by a space: at sentence ends once a piece has
+    # 30+ characters (so "т. е." and initials stay attached), at commas and dashes once it has
+    # 90+, so a long sentence still gives several exact anchors.
+    spans, start = [], None
+    for match in re.finditer(r'.+?(?:[.!?…,;:—–]+["»”)\]]*(?:\s+|$)|$)', text, re.S):
+        if start is None:
+            start = match.start()
+        length = match.end() - start
+        strong = re.search(r'[.!?…]["»”)\]]*\s*$', match.group()) is not None
+        if length >= 90 or (strong and length >= 30):
+            spans.append((start, match.end()))
+            start = None
+    if start is not None:
+        spans.append((start, len(text)))
+
+    def utf16(value):
+        return len(value.encode("utf-16-le")) // 2
+
+    segments, frames, rate, offset, previous = [], 0, None, 0, 0
+    with wave.open(out_path, "wb") as wav:
+        for a, b in spans:
+            offset += utf16(text[previous:a])
+            previous = a
+            written = 0
+            for chunk in voice.synthesize(text[a:b]):
+                if rate is None:
+                    rate = chunk.sample_rate
+                    wav.setnchannels(chunk.sample_channels)
+                    wav.setsampwidth(chunk.sample_width)
+                    wav.setframerate(rate)
+                data = chunk.audio_int16_bytes
+                wav.writeframes(data)
+                written += len(data) // (chunk.sample_width * chunk.sample_channels)
+            if written:
+                segments.append({
+                    "location": offset, "length": utf16(text[a:b]),
+                    "start": frames / rate, "end": (frames + written) / rate,
+                })
+                frames += written
+        if rate is None:
+            sys.exit("Piper produced no audio for this chapter.")
+
+    with open(out_path + ".segments.json", "w") as handle:
+        json.dump(segments, handle)
+    """#
 
     // A GUI app inherits a bare PATH, so Homebrew and pipx tools would not be found otherwise.
     nonisolated private static func environmentWithCommonToolPaths() -> [String: String] {
@@ -240,6 +298,10 @@ private final class SpeechSynthesisCoordinator: NSObject, AVSpeechSynthesizerDel
     private let voiceIdentifier: String?
     private var synthesizer: AVSpeechSynthesizer?
     private var audioFile: AVAudioFile?
+    private var markers: [(location: Int, length: Int, byteOffset: Int)] = []
+    private var bytesPerSecond: Double = 0
+    private var framesWritten: Double = 0
+    private var sampleRate: Double = 0
     private var continuation: CheckedContinuation<URL, Error>?
     private var hasFinished = false
 
@@ -259,12 +321,20 @@ private final class SpeechSynthesisCoordinator: NSObject, AVSpeechSynthesizerDel
             let utterance = AVSpeechUtterance(string: text)
             utterance.voice = Self.voice(for: text, preferredIdentifier: voiceIdentifier)
             utterance.rate = AVSpeechUtteranceDefaultSpeechRate
-            synthesizer.write(utterance) { [weak self] buffer in
+            synthesizer.write(utterance, toBufferCallback: { [weak self] buffer in
                 guard let self else { return }
                 Task { @MainActor in
                     self.handle(buffer)
                 }
-            }
+            }, toMarkerCallback: { [weak self] newMarkers in
+                // The voice says exactly where each word starts in the audio it is writing.
+                let words = newMarkers.filter { $0.mark == .word }.map {
+                    (location: $0.textRange.location, length: $0.textRange.length, byteOffset: Int($0.byteSampleOffset))
+                }
+                Task { @MainActor in
+                    self?.markers.append(contentsOf: words)
+                }
+            })
         }
     }
 
@@ -312,6 +382,9 @@ private final class SpeechSynthesisCoordinator: NSObject, AVSpeechSynthesizerDel
                 audioFile = try AVAudioFile(forWriting: outputURL, settings: pcmBuffer.format.settings)
             }
             try audioFile?.write(from: pcmBuffer)
+            sampleRate = pcmBuffer.format.sampleRate
+            bytesPerSecond = sampleRate * Double(pcmBuffer.format.streamDescription.pointee.mBytesPerFrame)
+            framesWritten += Double(pcmBuffer.frameLength)
         } catch {
             finish(.failure(TTSError.synthesisFailed))
         }
@@ -329,6 +402,24 @@ private final class SpeechSynthesisCoordinator: NSObject, AVSpeechSynthesizerDel
         }
     }
 
+    private func writeWordSegments() {
+        guard bytesPerSecond > 0, sampleRate > 0, !markers.isEmpty else { return }
+        let sorted = markers.sorted { $0.byteOffset < $1.byteOffset }
+        let segments = sorted.enumerated().map { index, marker in
+            TimingSegment(
+                location: marker.location,
+                length: marker.length,
+                start: Double(marker.byteOffset) / bytesPerSecond,
+                end: index + 1 < sorted.count
+                    ? Double(sorted[index + 1].byteOffset) / bytesPerSecond
+                    : framesWritten / sampleRate
+            )
+        }
+        if let data = try? JSONEncoder().encode(segments) {
+            try? data.write(to: TimingSegment.sidecarURL(for: outputURL))
+        }
+    }
+
     private func finish(_ result: Result<URL, Error>) {
         guard !hasFinished else { return }
         hasFinished = true
@@ -337,6 +428,9 @@ private final class SpeechSynthesisCoordinator: NSObject, AVSpeechSynthesizerDel
         synthesizer?.stopSpeaking(at: .immediate)
         synthesizer = nil
         audioFile = nil
+        if case .success = result {
+            writeWordSegments()
+        }
 
         guard let continuation else { return }
         self.continuation = nil
