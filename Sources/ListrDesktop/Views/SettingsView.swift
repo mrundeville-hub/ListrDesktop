@@ -162,25 +162,28 @@ private struct CommandPreset: Identifiable {
     let command: String
     let fileExtension: String
 
-    /// Silero runs from the project's own tool folder, so it is offered only when installed there.
-    private static var silero: [CommandPreset] {
+    /// Models that run from the project's own tool folder; offered only when installed there.
+    private static func local(_ model: String, venv: String, script: String, voices: [(id: String, name: String)]) -> [CommandPreset] {
         let root = ConversionStore.defaultProjectRoot
-        let python = root.appendingPathComponent(".tools/silero-venv/bin/python").path
-        let script = root.appendingPathComponent("script/silero_tts.py").path
+        let python = root.appendingPathComponent(".tools/\(venv)/bin/python").path
+        let script = root.appendingPathComponent("script/\(script)").path
         guard FileManager.default.isExecutableFile(atPath: python), FileManager.default.fileExists(atPath: script) else {
             return []
         }
-        return [("xenia", "Xenia"), ("eugene", "Eugene")].map { speaker, name in
+        return voices.map { voice in
             CommandPreset(
-                id: "silero-\(speaker)",
-                name: "Silero v5, \(name) (offline)",
-                command: "'\(python)' '\(script)' {text_file} {output} \(speaker)",
+                id: "\(venv)-\(voice.id)",
+                name: "\(model), \(voice.name) (offline)",
+                command: "'\(python)' '\(script)' {text_file} {output} \(voice.id)",
                 fileExtension: "wav"
             )
         }
     }
 
-    static let all: [CommandPreset] = silero + [
+    static let all: [CommandPreset] =
+        local("Silero v5", venv: "silero-venv", script: "silero_tts.py", voices: [("xenia", "Xenia"), ("eugene", "Eugene")])
+        + local("Qwen3-TTS", venv: "mlx-venv", script: "qwen_tts.py", voices: [("serena", "Serena"), ("ryan", "Ryan")])
+        + [
         CommandPreset(
             id: "edge-svetlana",
             name: "edge-tts, Svetlana (online)",
