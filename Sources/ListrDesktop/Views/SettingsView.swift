@@ -1,21 +1,32 @@
 import SwiftUI
 
-// Standard macOS settings form: pick an engine, then only that engine's options.
+// Standard macOS settings form. One "Voice" menu lists every voice that is ready to use;
+// the engine behind it and its options follow from that choice.
 struct SettingsView: View {
     @Environment(ConversionStore.self) private var conversionStore
     @State private var preview = VoicePreviewService()
 
     var body: some View {
-        @Bindable var conversionStore = conversionStore
-
         Form {
             Section {
-                Picker("Voice engine", selection: $conversionStore.selectedEngine) {
-                    ForEach(VoiceEngine.allCases) { engine in
-                        Text(engine.title).tag(engine)
+                Picker("Voice", selection: voiceChoice) {
+                    Section("Piper — offline, fast") {
+                        ForEach(conversionStore.installedPiperVoices) { voice in
+                            Text(voice.name).tag(Choice.piper(voice.id))
+                        }
+                    }
+                    ForEach(CommandPreset.groups, id: \.title) { group in
+                        Section(group.title) {
+                            ForEach(group.presets) { preset in
+                                Text(preset.name).tag(Choice.preset(preset.id))
+                            }
+                        }
+                    }
+                    Section("Other") {
+                        Text("macOS system voice").tag(Choice.system)
+                        Text("Custom command…").tag(Choice.custom)
                     }
                 }
-                .pickerStyle(.segmented)
 
                 LabeledContent {
                     Label(
@@ -24,19 +35,6 @@ struct SettingsView: View {
                     )
                     .foregroundStyle(isSelectedEngineReady ? Color.secondary : Color.red)
                 } label: {
-                    Text(conversionStore.selectedEngine.blurb)
-                        .foregroundStyle(.secondary)
-                }
-            }
-
-            switch conversionStore.selectedEngine {
-            case .system: systemOptions
-            case .piper: piperOptions
-            case .custom: commandOptions
-            }
-
-            Section {
-                LabeledContent("Try it") {
                     Button(preview.isRunning ? "Preparing…" : "Play a sample sentence") {
                         Task { await preview.play(configuration: conversionStore.activeConfiguration) }
                     }
@@ -53,9 +51,59 @@ struct SettingsView: View {
                 Text("A new voice applies to chapters converted from now on. To redo a finished book, open it and choose Regenerate Audio from the ⋯ menu.")
                     .foregroundStyle(.secondary)
             }
+
+            switch conversionStore.selectedEngine {
+            case .system: systemOptions
+            case .piper: piperOptions
+            case .custom: commandOptions
+            }
         }
         .formStyle(.grouped)
         .preferredColorScheme(.light)
+    }
+
+    // MARK: Voice choice
+
+    private enum Choice: Hashable {
+        case piper(String)  // model path
+        case preset(String) // preset id
+        case system
+        case custom
+    }
+
+    private var voiceChoice: Binding<Choice> {
+        Binding {
+            switch conversionStore.selectedEngine {
+            case .piper:
+                return .piper(conversionStore.piperModelPath)
+            case .system:
+                return .system
+            case .custom:
+                let preset = CommandPreset.all.first { $0.command == conversionStore.customCommand }
+                return preset.map { .preset($0.id) } ?? .custom
+            }
+        } set: { choice in
+            switch choice {
+            case .piper(let path):
+                if let voice = conversionStore.installedPiperVoices.first(where: { $0.id == path }) {
+                    conversionStore.selectPiperVoice(voice)
+                }
+                conversionStore.selectedEngine = .piper
+            case .preset(let id):
+                guard let preset = CommandPreset.all.first(where: { $0.id == id }) else { return }
+                conversionStore.customCommand = preset.command
+                conversionStore.customOutputExtension = preset.fileExtension
+                conversionStore.selectedEngine = .custom
+            case .system:
+                conversionStore.selectedEngine = .system
+            case .custom:
+                // Start from a blank command unless one is already being edited.
+                if CommandPreset.all.contains(where: { $0.command == conversionStore.customCommand }) {
+                    conversionStore.customCommand = ""
+                }
+                conversionStore.selectedEngine = .custom
+            }
+        }
     }
 
     private var isSelectedEngineReady: Bool {
@@ -72,7 +120,7 @@ struct SettingsView: View {
         @Bindable var conversionStore = conversionStore
 
         return Section {
-            Picker("Voice", selection: $conversionStore.selectedSystemVoiceIdentifier) {
+            Picker("System voice", selection: $conversionStore.selectedSystemVoiceIdentifier) {
                 Text("Automatic").tag("")
                 Section("Russian") {
                     ForEach(conversionStore.russianSystemVoices) { voice in
@@ -95,24 +143,10 @@ struct SettingsView: View {
         @Bindable var conversionStore = conversionStore
 
         return Section {
-            Picker("Voice", selection: Binding(
-                get: { conversionStore.piperModelPath },
-                set: { path in
-                    if let voice = conversionStore.installedPiperVoices.first(where: { $0.id == path }) {
-                        conversionStore.selectPiperVoice(voice)
-                    }
-                }
-            )) {
-                ForEach(conversionStore.installedPiperVoices) { voice in
-                    Text(voice.name).tag(voice.id)
-                }
-            }
-            .disabled(conversionStore.installedPiperVoices.isEmpty)
-
             TextField("Voices folder", text: $conversionStore.piperVoicesDirectory)
             TextField("Piper program", text: $conversionStore.piperExecutablePath)
         } footer: {
-            Text("Any .onnx voice with its .onnx.json next to it appears in the list.")
+            Text("Any .onnx voice with its .onnx.json in the voices folder appears in the Voice menu.")
                 .foregroundStyle(.secondary)
         }
     }
@@ -126,31 +160,9 @@ struct SettingsView: View {
                 .fontDesign(.monospaced)
 
             TextField("Audio format", text: $conversionStore.customOutputExtension, prompt: Text("wav"))
-
-            LabeledContent("Presets") {
-                Menu("Choose…") {
-                    ForEach(CommandPreset.all) { preset in
-                        Button(preset.name) {
-                            conversionStore.customCommand = preset.command
-                            conversionStore.customOutputExtension = preset.fileExtension
-                        }
-                    }
-                }
-                .fixedSize()
-            }
         } footer: {
             Text("Runs once per chapter. {text_file} is the chapter text and {output} is the audio file the command must write.")
                 .foregroundStyle(.secondary)
-        }
-    }
-}
-
-private extension VoiceEngine {
-    var blurb: String {
-        switch self {
-        case .piper: "Neural voice on this Mac. Offline and fast."
-        case .custom: "Any model with a command line, such as edge-tts or Silero."
-        case .system: "Built into macOS. Always works, plainest sound."
         }
     }
 }
@@ -162,8 +174,13 @@ private struct CommandPreset: Identifiable {
     let command: String
     let fileExtension: String
 
+    struct Group {
+        let title: String
+        let presets: [CommandPreset]
+    }
+
     /// Models that run from the project's own tool folder; offered only when installed there.
-    private static func local(_ model: String, venv: String, script: String, voices: [(id: String, name: String)]) -> [CommandPreset] {
+    private static func local(venv: String, script: String, voices: [(id: String, name: String)]) -> [CommandPreset] {
         let root = ConversionStore.defaultProjectRoot
         let python = root.appendingPathComponent(".tools/\(venv)/bin/python").path
         let script = root.appendingPathComponent("script/\(script)").path
@@ -173,28 +190,40 @@ private struct CommandPreset: Identifiable {
         return voices.map { voice in
             CommandPreset(
                 id: "\(venv)-\(voice.id)",
-                name: "\(model), \(voice.name) (offline)",
+                name: voice.name,
                 command: "'\(python)' '\(script)' {text_file} {output} \(voice.id)",
                 fileExtension: "wav"
             )
         }
     }
 
-    static let all: [CommandPreset] =
-        local("Silero v5", venv: "silero-venv", script: "silero_tts.py", voices: [("xenia", "Xenia"), ("eugene", "Eugene")])
-        + local("Qwen3-TTS", venv: "mlx-venv", script: "qwen_tts.py", voices: [("serena", "Serena"), ("ryan", "Ryan")])
-        + [
+    private static func edge(_ voice: String, _ name: String) -> CommandPreset {
         CommandPreset(
-            id: "edge-svetlana",
-            name: "edge-tts, Svetlana (online)",
-            command: "edge-tts --voice ru-RU-SvetlanaNeural --file {text_file} --write-media {output}",
-            fileExtension: "mp3"
-        ),
-        CommandPreset(
-            id: "edge-dmitry",
-            name: "edge-tts, Dmitry (online)",
-            command: "edge-tts --voice ru-RU-DmitryNeural --file {text_file} --write-media {output}",
+            id: "edge-\(voice)",
+            name: name,
+            command: "edge-tts --voice \(voice) --file {text_file} --write-media {output}",
             fileExtension: "mp3"
         )
-    ]
+    }
+
+    static let groups: [Group] = [
+        Group(
+            title: "Silero v5 — offline, best Russian",
+            presets: local(venv: "silero-venv", script: "silero_tts.py", voices: [
+                ("xenia", "Xenia"), ("baya", "Baya"), ("kseniya", "Kseniya"), ("eugene", "Eugene"), ("aidar", "Aidar")
+            ])
+        ),
+        Group(
+            title: "Qwen3-TTS — offline, most natural, slow",
+            presets: local(venv: "mlx-venv", script: "qwen_tts.py", voices: [
+                ("serena", "Serena"), ("vivian", "Vivian"), ("ryan", "Ryan"), ("aiden", "Aiden")
+            ])
+        ),
+        Group(
+            title: "edge-tts — online",
+            presets: [edge("ru-RU-SvetlanaNeural", "Svetlana"), edge("ru-RU-DmitryNeural", "Dmitry")]
+        )
+    ].filter { !$0.presets.isEmpty }
+
+    static let all: [CommandPreset] = groups.flatMap(\.presets)
 }

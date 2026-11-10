@@ -77,8 +77,7 @@ uv venv --python 3.12 .tools/silero-venv
 uv pip install -p .tools/silero-venv silero scipy
 ```
 
-Once that folder exists, Settings → Command → Presets offers **Silero v5, Xenia** and
-**Silero v5, Eugene**. They run [`script/silero_tts.py`](../script/silero_tts.py):
+Once that folder exists, the Silero voices appear in Settings → **Voice**. They run [`script/silero_tts.py`](../script/silero_tts.py):
 
 ```
 .tools/silero-venv/bin/python script/silero_tts.py {text_file} {output} xenia
@@ -97,8 +96,7 @@ uv venv --python 3.12 .tools/mlx-venv
 uv pip install -p .tools/mlx-venv mlx-audio
 ```
 
-Once that folder exists, Settings → Command → Presets offers **Qwen3-TTS, Serena** and
-**Qwen3-TTS, Ryan**. They run [`script/qwen_tts.py`](../script/qwen_tts.py):
+Once that folder exists, the Qwen3-TTS voices appear in Settings → **Voice**. They run [`script/qwen_tts.py`](../script/qwen_tts.py):
 
 ```
 .tools/mlx-venv/bin/python script/qwen_tts.py {text_file} {output} serena
