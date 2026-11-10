@@ -8,6 +8,8 @@ Native macOS app that turns books into local narrated audio.
 - Three narration engines: **System**, **Piper**, and **Command**
 - Resumable per-chapter conversion with cancel / retry
 - Chapter playback with seek, skip, speed, and resume position
+- The spoken word is highlighted as it is read (sentence-exact with Piper and Silero, word-exact with System)
+- Listening time per month and year, a day streak, and a five-week activity grid
 - Floating **Reading Overlay** window for listening while you work
 
 ## Voice engines

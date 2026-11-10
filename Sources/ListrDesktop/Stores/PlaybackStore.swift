@@ -30,6 +30,9 @@ final class PlaybackStore {
 
     /// Called when a chapter plays to the end; wired by the app to auto-advance.
     @ObservationIgnored var onChapterFinished: ((Book.ID, Chapter.ID) -> Void)?
+    /// Called while audio is playing with the real seconds that just passed; feeds the stats.
+    @ObservationIgnored var onListened: ((TimeInterval) -> Void)?
+    @ObservationIgnored private var lastTick = Date()
 
     @ObservationIgnored private var player: AVAudioPlayer?
     @ObservationIgnored private var progressTask: Task<Void, Never>?
@@ -46,7 +49,9 @@ final class PlaybackStore {
     }
 
     var currentWord: ChapterWordTiming? {
-        currentTiming?.word(at: elapsed)
+        // A touch ahead of the clock: the position is sampled every 0.1 s, and a highlight that
+        // lands just before the word is heard reads as in sync, one that lands after reads as late.
+        currentTiming?.word(at: elapsed + 0.08)
     }
 
     func play(bookID: Book.ID, chapter: Chapter, speed: Double) {
@@ -147,13 +152,19 @@ final class PlaybackStore {
         guard progressTask == nil else { return }
         progressTask = Task { [weak self] in
             while !Task.isCancelled {
-                try? await Task.sleep(for: .milliseconds(500))
+                try? await Task.sleep(for: .milliseconds(100))
                 guard let self else { return }
                 await MainActor.run {
                     guard let player = self.player else {
                         self.stopProgressUpdates()
                         return
                     }
+
+                    let now = Date()
+                    if player.isPlaying {
+                        self.onListened?(min(now.timeIntervalSince(self.lastTick), 1))
+                    }
+                    self.lastTick = now
 
                     self.elapsed = player.currentTime
                     self.duration = player.duration

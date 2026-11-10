@@ -6,6 +6,7 @@ struct ListrDesktopApp: App {
     @State private var conversionStore = ConversionStore()
     @State private var playbackStore = PlaybackStore()
     @State private var overlayStore = OverlayStore()
+    @State private var statsStore = ListeningStatsStore()
     @State private var overlayWindowController = OverlayWindowController()
 
     var body: some Scene {
@@ -16,6 +17,7 @@ struct ListrDesktopApp: App {
                 .environment(conversionStore)
                 .environment(playbackStore)
                 .environment(overlayStore)
+                .environment(statsStore)
                 .frame(minWidth: 720, minHeight: 520)
                 .onAppear {
                     // Keep the window user-resizable; hiddenTitleBar + tiling can drop the bit.
@@ -25,6 +27,7 @@ struct ListrDesktopApp: App {
                             window.minSize = NSSize(width: 720, height: 520)
                         }
                     }
+                    playbackStore.onListened = { statsStore.add($0) }
                     playbackStore.onChapterFinished = { bookID, chapterID in
                         autoAdvance(bookID: bookID, finishedChapterID: chapterID)
                     }
@@ -47,7 +50,8 @@ struct ListrDesktopApp: App {
         Settings {
             SettingsView()
                 .environment(conversionStore)
-                .frame(width: 520, height: 640)
+                .frame(width: 520)
+                .fixedSize(horizontal: false, vertical: true) // window hugs the form
         }
         .commands {
             CommandMenu("Reading Overlay") {

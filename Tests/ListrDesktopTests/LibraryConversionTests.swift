@@ -388,6 +388,29 @@ struct LibraryConversionTests {
 
         #expect(FileManager.default.fileExists(atPath: synthesizedURL.path))
         #expect((try FileManager.default.attributesOfItem(atPath: synthesizedURL.path)[.size] as? Int ?? 0) > 10_000)
+
+        // The runner reports where the text sits in the audio, which keeps the highlight in step.
+        let segments = TimingSegment.takeSidecar(for: synthesizedURL)
+        #expect(segments.first?.location == 0)
+        #expect((segments.last?.end ?? 0) > 1)
+    }
+
+    @Test("system voice reports where each word starts")
+    func systemVoiceWritesWordSegments() async throws {
+        // Needs a real macOS speech voice; hosted CI runners have no audio stack to rely on.
+        guard ProcessInfo.processInfo.environment["CI"] == nil else { return }
+
+        let directory = try TemporaryDirectory()
+        let outputURL = directory.url.appendingPathComponent("system.aiff")
+        let synthesizedURL = try await SystemTTSService().synthesize(
+            chapterText: "One two three four.",
+            configuration: .testSystem,
+            to: outputURL
+        )
+
+        let segments = TimingSegment.takeSidecar(for: synthesizedURL)
+        #expect(segments.count == 4)
+        #expect(segments.map(\.start) == segments.map(\.start).sorted())
     }
 }
 
