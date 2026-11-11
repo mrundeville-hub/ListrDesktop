@@ -38,19 +38,19 @@ struct ContentView: View {
         .animation(.smooth(duration: 0.3), value: openBookIDString)
         .listrWindowStyle()
         .dropDestination(for: URL.self) { urls, _ in
-            guard let url = urls.first(where: { BookFormat.detect(from: $0) != nil }) else { return false }
-            importBook(from: url)
+            let books = urls.filter { BookFormat.detect(from: $0) != nil }
+            guard !books.isEmpty else { return false }
+            importBooks(from: books)
             return true
         }
         .fileImporter(
             isPresented: $isImporterPresented,
             allowedContentTypes: BookFormat.supportedTypes,
-            allowsMultipleSelection: false
+            allowsMultipleSelection: true
         ) { result in
             switch result {
             case .success(let urls):
-                guard let url = urls.first else { return }
-                importBook(from: url)
+                importBooks(from: urls)
             case .failure(let error):
                 libraryStore.importError = error.localizedDescription
             }
@@ -128,12 +128,24 @@ struct ContentView: View {
         openBookID = book.id
     }
 
-    // A freshly imported book opens straight away: the next step is always "convert it".
-    private func importBook(from url: URL) {
+    // One freshly imported book opens straight away: the next step is always "convert it".
+    // Several land in the library and leave the screen as it is.
+    private func importBooks(from urls: [URL]) {
         Task {
-            await libraryStore.importBook(from: url)
-            if libraryStore.importError == nil {
+            var failures: [String] = []
+            for url in urls {
+                await libraryStore.importBook(from: url)
+                if let error = libraryStore.importError {
+                    failures.append("\(url.lastPathComponent): \(error)")
+                }
+            }
+            if urls.count == 1, failures.isEmpty {
                 openBookID = libraryStore.selectedBookID
+            } else if let openBookID {
+                libraryStore.selectedBookID = openBookID // importing selects the new book; keep the one on screen
+            }
+            if !failures.isEmpty {
+                libraryStore.importError = failures.joined(separator: "\n")
             }
         }
     }
