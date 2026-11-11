@@ -9,11 +9,20 @@ struct LibraryView: View {
     let onImport: () -> Void
     let onRemove: (Book) -> Void
 
+    @State private var query = ""
+    @AppStorage("library.sort") private var sort = Sort.recent
+    @FocusState private var isSearchFocused: Bool
+
     var body: some View {
         VStack(spacing: 0) {
             ListrTopBar(title: "Library") {
                 EmptyView()
             } trailing: {
+                if !libraryStore.books.isEmpty {
+                    searchField
+                    sortMenu
+                }
+
                 SettingsLink {
                     Image(systemName: "gearshape")
                 }
@@ -42,7 +51,7 @@ struct LibraryView: View {
                         alignment: .leading,
                         spacing: 36
                     ) {
-                        ForEach(libraryStore.books) { book in
+                        ForEach(visibleBooks) { book in
                             BookCell(book: book, isPlaying: isPlaying(book)) {
                                 onOpen(book)
                             }
@@ -54,6 +63,14 @@ struct LibraryView: View {
                     .padding(.horizontal, 44)
                     .padding(.top, 20)
                     .padding(.bottom, 32)
+                    .animation(.smooth(duration: 0.25), value: visibleBooks.map(\.id))
+
+                    if visibleBooks.isEmpty {
+                        Text("No books match “\(query)”")
+                            .font(.system(size: 14))
+                            .foregroundStyle(ListrTheme.mutedLabel)
+                            .padding(.top, 40)
+                    }
                 }
                 .scrollIndicators(.hidden)
             }
@@ -66,6 +83,79 @@ struct LibraryView: View {
             }
         }
         .animation(.smooth(duration: 0.3), value: playingBook?.id)
+    }
+
+    // MARK: Search and sort
+
+    private enum Sort: String, CaseIterable {
+        case recent = "Recently added"
+        case title = "Title"
+        case author = "Author"
+    }
+
+    private var visibleBooks: [Book] {
+        let text = query.trimmingCharacters(in: .whitespaces)
+        let found = text.isEmpty ? libraryStore.books : libraryStore.books.filter {
+            $0.title.localizedStandardContains(text) || $0.author.localizedStandardContains(text)
+        }
+        func ascending(_ a: String, _ b: String) -> Bool { a.localizedStandardCompare(b) == .orderedAscending }
+        switch sort {
+        case .recent: return found // the library keeps the newest book first
+        case .title: return found.sorted { ascending($0.title, $1.title) }
+        case .author: return found.sorted { $0.author == $1.author ? ascending($0.title, $1.title) : ascending($0.author, $1.author) }
+        }
+    }
+
+    private var searchField: some View {
+        HStack(spacing: 6) {
+            Image(systemName: "magnifyingglass")
+                .foregroundStyle(ListrTheme.mutedLabel)
+            TextField("Search", text: $query)
+                .textFieldStyle(.plain)
+                .focused($isSearchFocused)
+                .onExitCommand {
+                    query = ""
+                    isSearchFocused = false
+                }
+            if !query.isEmpty {
+                Button { query = "" } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .foregroundStyle(ListrTheme.mutedLabel)
+                }
+                .buttonStyle(.plain)
+                .help("Clear search")
+            }
+        }
+        .font(.system(size: 13))
+        .padding(.horizontal, 10)
+        .frame(width: 190, height: 30)
+        .background(ListrTheme.fill, in: Capsule())
+        .background {
+            // ⌘F jumps to the search field.
+            Button("Search") { isSearchFocused = true }
+                .keyboardShortcut("f")
+                .hidden()
+        }
+    }
+
+    private var sortMenu: some View {
+        Menu {
+            Picker("Sort by", selection: $sort) {
+                ForEach(Sort.allCases, id: \.self) { Text($0.rawValue).tag($0) }
+            }
+            .pickerStyle(.inline)
+        } label: {
+            Image(systemName: "arrow.up.arrow.down")
+                .font(.system(size: 13, weight: .medium))
+                .foregroundStyle(ListrTheme.ink)
+                .frame(width: 32, height: 32)
+                .contentShape(Circle())
+        }
+        .menuStyle(.button)
+        .buttonStyle(.plain)
+        .menuIndicator(.hidden)
+        .fixedSize()
+        .help("Sort books")
     }
 
     private var playingBook: Book? {
