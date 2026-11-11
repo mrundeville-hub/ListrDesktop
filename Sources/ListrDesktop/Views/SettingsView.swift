@@ -14,6 +14,10 @@ struct SettingsView: View {
                         ForEach(conversionStore.installedPiperVoices) { voice in
                             Text(voice.name).tag(Choice.piper(voice.id))
                         }
+                        // No voice found for the current model path: still a way into the Piper fields.
+                        if !conversionStore.installedPiperVoices.contains(where: { $0.id == conversionStore.piperModelPath }) {
+                            Text("Set up Piper…").tag(Choice.piper(conversionStore.piperModelPath))
+                        }
                     }
                     ForEach(CommandPreset.groups, id: \.title) { group in
                         Section(group.title) {
