@@ -133,10 +133,16 @@ private struct BookCell: View {
                         .foregroundStyle(ListrTheme.ink)
                         .lineLimit(2)
                         .multilineTextAlignment(.leading)
-                    Text(detail)
+                    Text(book.author)
                         .font(.system(size: 12))
                         .foregroundStyle(ListrTheme.mutedLabel)
                         .lineLimit(1)
+                    if !detail.isEmpty {
+                        Text(detail)
+                            .font(.system(size: 12))
+                            .foregroundStyle(ListrTheme.mutedLabel.opacity(0.75))
+                            .lineLimit(1)
+                    }
                 }
             }
             .contentShape(Rectangle())
@@ -144,13 +150,13 @@ private struct BookCell: View {
         .buttonStyle(.plain)
         .onHover { isHovered = $0 }
         .animation(.snappy(duration: 0.25), value: isHovered)
-        .accessibilityLabel("\(book.title), \(detail)")
+        .accessibilityLabel("\(book.title), \(book.author), \(detail)")
     }
 
     // One quiet line: what you can do with this book right now.
     private var detail: String {
         switch book.status {
-        case .ready: book.duration > 0 ? book.durationLabel : book.author
+        case .ready: book.duration > 0 ? book.durationLabel : ""
         case .converting: "Converting, \(Int(book.progress * 100))%"
         case .failed: "Needs attention"
         case .queued: "\(Int(book.progress * 100))% converted"
