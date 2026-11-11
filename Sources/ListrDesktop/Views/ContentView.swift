@@ -138,11 +138,14 @@ struct ContentView: View {
                 if let error = libraryStore.importError {
                     failures.append("\(url.lastPathComponent): \(error)")
                 }
+                // Importing selects the new book; in a batch, hand the selection straight back
+                // to the book on screen so Convert never aims at a different one mid-import.
+                if urls.count > 1, let openBookID {
+                    libraryStore.selectedBookID = openBookID
+                }
             }
             if urls.count == 1, failures.isEmpty {
                 openBookID = libraryStore.selectedBookID
-            } else if let openBookID {
-                libraryStore.selectedBookID = openBookID // importing selects the new book; keep the one on screen
             }
             if !failures.isEmpty {
                 libraryStore.importError = failures.joined(separator: "\n")
