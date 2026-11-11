@@ -123,6 +123,14 @@ struct BookView: View {
             .frame(height: 30)
             .background(ListrTheme.fill, in: Capsule())
             .animation(.snappy, value: readyCount)
+        } else if libraryStore.conversionQueue.contains(book.id) {
+            Text("Waiting to convert")
+                .font(.system(size: 12, weight: .medium))
+                .foregroundStyle(ListrTheme.mutedLabel)
+                .padding(.horizontal, 12)
+                .frame(height: 30)
+                .background(ListrTheme.fill, in: Capsule())
+                .help("Starts when the books ahead of it in the queue are done")
         } else if libraryStore.canConvertSelectedBook, book.resumeChapter != nil {
             Button("Convert the rest", action: convert)
                 .buttonStyle(ListrCapsuleButtonStyle())
@@ -165,7 +173,7 @@ struct BookView: View {
     // Before anything plays: the book itself and the single next step.
     private var hero: some View {
         VStack(spacing: 24) {
-            ListrCover(seed: book.title, cornerRadius: 24)
+            ListrCover(seed: book.title, imagePath: book.coverPath, cornerRadius: 24)
                 .frame(width: 168, height: 224)
                 .shadow(color: .black.opacity(0.12), radius: 24, y: 12)
 
@@ -216,7 +224,7 @@ struct BookView: View {
                 }
             }
         } else {
-            hint("Another book is converting. This one can start when it finishes.")
+            hint("Waiting in the queue. It starts when the books ahead of it are done.")
         }
     }
 
@@ -258,7 +266,7 @@ private struct ChapterList: View {
             }
             .scrollIndicators(.hidden)
         }
-        .background(.white.opacity(0.55), in: RoundedRectangle(cornerRadius: 22, style: .continuous))
+        .background(ListrTheme.surface(0.55), in: RoundedRectangle(cornerRadius: 22, style: .continuous))
     }
 
     private var summary: String {

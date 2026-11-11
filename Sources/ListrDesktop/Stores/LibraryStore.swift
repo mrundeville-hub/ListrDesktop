@@ -18,7 +18,11 @@ final class LibraryStore {
     @ObservationIgnored private let audioRootURL: URL
     @ObservationIgnored private var hasLoadedPersistedLibrary = false
     private var conversionTask: Task<Void, Never>? // observed: drives isConverting in the UI
-    @ObservationIgnored private var convertingBookID: Book.ID?
+    private(set) var convertingBookID: Book.ID?
+    /// Books waiting their turn, in order. The one being converted is not in here.
+    private(set) var conversionQueue: [Book.ID] = []
+    @ObservationIgnored private var queueConfiguration: TTSConfiguration?
+    @ObservationIgnored private var keepAwake: NSObjectProtocol?
     @ObservationIgnored private var conversionGeneration = 0
     @ObservationIgnored private var saveTask: Task<Void, Never>?
 
@@ -49,8 +53,13 @@ final class LibraryStore {
     }
 
     var canConvertSelectedBook: Bool {
-        guard !isConverting, let selectedBook else { return false }
-        return selectedBook.chapters.contains { !$0.isReady }
+        guard let selectedBook else { return false }
+        return canConvert(selectedBook)
+    }
+
+    /// Not finished, and not already converting or waiting in the queue.
+    func canConvert(_ book: Book) -> Bool {
+        convertingBookID != book.id && !conversionQueue.contains(book.id) && book.chapters.contains { !$0.isReady }
     }
 
     var canRegenerateSelectedBook: Bool {
@@ -93,8 +102,58 @@ final class LibraryStore {
             if persisted.schemaVersion < PersistedLibrary.currentSchemaVersion || books != persisted.books {
                 saveLibrary()
             }
+            Task { await refreshFromSourceFilesOnce() }
         } catch {
             persistenceError = error.localizedDescription
+        }
+    }
+
+    /// Books imported before covers and contents-based chapters existed get both from their
+    /// source file, once. Chapters are only replaced on books with no audio yet.
+    private func refreshFromSourceFilesOnce() async {
+        let key = "library.refreshedFromSources.v1"
+        guard !UserDefaults.standard.bool(forKey: key) else { return }
+
+        func isUntouched(_ book: Book) -> Bool {
+            book.chapters.allSatisfy { $0.audioPath == nil && $0.status == .pending }
+        }
+        let candidates = books.filter { $0.sourcePath != nil && ($0.coverPath == nil || isUntouched($0)) }
+        var readAny = false
+
+        for candidate in candidates {
+            guard let path = candidate.sourcePath, let imported = try? await Task.detached(priority: .utility, operation: {
+                try BookImportService().importBook(from: URL(fileURLWithPath: path))
+            }).value else { continue }
+            readAny = true
+
+            guard let index = books.firstIndex(where: { $0.id == candidate.id }) else { continue }
+            if books[index].coverPath == nil {
+                books[index].coverPath = saveCover(imported.coverData, bookID: candidate.id)
+            }
+            if isUntouched(books[index]), convertingBookID != candidate.id, !conversionQueue.contains(candidate.id) {
+                books[index].chapters = imported.chapters
+                books[index].chapterCount = imported.chapters.count
+            }
+        }
+
+        // Nothing readable (the files' folder may need a permission the user has not given yet):
+        // try again next launch.
+        if readAny || candidates.isEmpty {
+            UserDefaults.standard.set(true, forKey: key)
+            saveLibrary()
+        }
+    }
+
+    private func saveCover(_ data: Data?, bookID: Book.ID) -> String? {
+        guard let data, !data.isEmpty else { return nil }
+        let folder = audioRootURL.appendingPathComponent(bookID.uuidString)
+        let url = folder.appendingPathComponent("cover")
+        do {
+            try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+            try data.write(to: url, options: .atomic)
+            return url.path
+        } catch {
+            return nil // a book without its cover is still a book
         }
     }
 
@@ -107,8 +166,12 @@ final class LibraryStore {
             let imported = try await Task.detached(priority: .userInitiated) {
                 try BookImportService().importBook(from: url)
             }.value
+            if books.contains(where: { $0.title == imported.title && $0.author == imported.author }) {
+                throw BookImportError.alreadyInLibrary(imported.title)
+            }
+            let id = UUID()
             let book = Book(
-                id: UUID(),
+                id: id,
                 title: imported.title,
                 author: imported.author,
                 chapterCount: imported.chapters.count,
@@ -117,7 +180,8 @@ final class LibraryStore {
                 progress: 0,
                 addedAt: .now,
                 sourcePath: imported.sourceURL.path,
-                chapters: imported.chapters
+                chapters: imported.chapters,
+                coverPath: saveCover(imported.coverData, bookID: id)
             )
             books.insert(book, at: 0)
             selectedBookID = book.id
@@ -129,30 +193,55 @@ final class LibraryStore {
 
     @discardableResult
     func convertSelectedBook(configuration: TTSConfiguration) -> Task<Void, Never>? {
-        guard conversionTask == nil, let selectedBookID else { return nil }
+        guard let selectedBookID else { return nil }
+        return convert(bookIDs: [selectedBookID], configuration: configuration)
+    }
+
+    /// Adds books to the conversion queue and starts it if it is idle. Books are converted one
+    /// after another; one that fails is left marked and the queue moves on.
+    @discardableResult
+    func convert(bookIDs: [Book.ID], configuration: TTSConfiguration) -> Task<Void, Never>? {
+        let waiting = bookIDs.filter { id in books.first { $0.id == id }.map(canConvert) == true }
+        guard !waiting.isEmpty else { return conversionTask }
+        conversionQueue.append(contentsOf: waiting)
+        queueConfiguration = configuration // the voice chosen last reads everything still waiting
         conversionError = nil
-        convertingBookID = selectedBookID
+        if let conversionTask { return conversionTask }
+
         conversionGeneration += 1
         let generation = conversionGeneration
+        // A long queue is meant to be left running: keep the Mac from idle-sleeping under it.
+        keepAwake = ProcessInfo.processInfo.beginActivity(options: .userInitiated, reason: "Converting books to audio")
         conversionTask = Task { [weak self] in
-            guard let self else { return }
-            defer {
-                // A cancelled run winding down must not clear the state of the run started after it.
-                if generation == self.conversionGeneration {
-                    self.conversionTask = nil
-                    self.convertingBookID = nil
-                }
+            // A cancelled run winding down must not touch the queue of the run started after it.
+            while let self, !Task.isCancelled, generation == self.conversionGeneration,
+                  let next = self.conversionQueue.first, let configuration = self.queueConfiguration {
+                self.conversionQueue.removeFirst()
+                self.convertingBookID = next
+                await self.convertBook(id: next, configuration: configuration)
             }
-            await self.convertBook(id: selectedBookID, configuration: configuration)
+            guard let self, generation == self.conversionGeneration else { return }
+            self.conversionTask = nil
+            self.convertingBookID = nil
+            self.endKeepAwake()
         }
         return conversionTask
     }
 
+    private func endKeepAwake() {
+        if let keepAwake { ProcessInfo.processInfo.endActivity(keepAwake) }
+        keepAwake = nil
+    }
+
+    /// Stops the book being converted and empties the queue. Finished chapters are kept.
     func cancelConversion() {
         let bookID = convertingBookID
         conversionTask?.cancel()
         conversionTask = nil
         convertingBookID = nil
+        conversionQueue = []
+        conversionGeneration += 1
+        endKeepAwake()
 
         guard let bookID, let bookIndex = books.firstIndex(where: { $0.id == bookID }) else {
             return
@@ -191,8 +280,12 @@ final class LibraryStore {
     func removeBook(id: Book.ID) {
         guard let bookIndex = books.firstIndex(where: { $0.id == id }) else { return }
 
+        conversionQueue.removeAll { $0 == id }
         if convertingBookID == id {
+            // Only this book stops; the ones waiting behind it carry on.
+            let waiting = conversionQueue
             cancelConversion()
+            if let queueConfiguration { convert(bookIDs: waiting, configuration: queueConfiguration) }
         }
 
         let book = books.remove(at: bookIndex)
@@ -220,6 +313,7 @@ final class LibraryStore {
         let previous = books[bookIndex].chapters[chapterIndex].resumePosition ?? 0
         guard position <= 0 || abs(position - previous) >= 5 else { return }
         books[bookIndex].chapters[chapterIndex].resumePosition = max(position, 0)
+        books[bookIndex].lastPlayedAt = .now
         saveLibrary()
     }
 

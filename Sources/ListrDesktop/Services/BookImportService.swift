@@ -6,6 +6,8 @@ enum BookImportError: LocalizedError {
     case unreadableFile
     case emptyBook
     case invalidEPUB(String)
+    case zipWithoutBook
+    case alreadyInLibrary(String)
 
     var errorDescription: String? {
         switch self {
@@ -13,6 +15,8 @@ enum BookImportError: LocalizedError {
         case .unreadableFile: "The selected file could not be read."
         case .emptyBook: "No readable chapters were found in this book."
         case .invalidEPUB(let reason): "Invalid EPUB: \(reason)"
+        case .zipWithoutBook: "This archive has no FB2 book inside."
+        case .alreadyInLibrary(let title): "“\(title)” is already in the library."
         }
     }
 }
@@ -23,6 +27,8 @@ struct ImportedBook: Sendable {
     var format: BookFormat
     var chapters: [Chapter]
     var sourceURL: URL
+    /// The cover image file as it sits in the book (JPEG or PNG), if the book has one.
+    var coverData: Data? = nil
 }
 
 struct BookImportService: Sendable {
@@ -68,8 +74,18 @@ private struct PlainTextBookParser {
 
 private struct FB2BookParser {
     func parse(url: URL) throws -> ImportedBook {
-        let data = try Data(contentsOf: url)
-        let delegate = FB2XMLDelegate(fallbackTitle: url.deletingPathExtension().lastPathComponent)
+        var data = try Data(contentsOf: url)
+        var fallbackTitle = url.deletingPathExtension().lastPathComponent
+        if data.starts(with: [0x50, 0x4B]) { // "PK": a zipped book (.fb2.zip, .fbz)
+            let archive = try Archive(url: url, accessMode: .read)
+            guard let entry = archive.first(where: { $0.path.lowercased().hasSuffix(".fb2") }) else {
+                throw BookImportError.zipWithoutBook
+            }
+            data = Data()
+            _ = try archive.extract(entry) { data.append($0) }
+            fallbackTitle = URL(fileURLWithPath: entry.path).deletingPathExtension().lastPathComponent
+        }
+        let delegate = FB2XMLDelegate(fallbackTitle: fallbackTitle)
         let parser = XMLParser(data: data)
         parser.delegate = delegate
 
@@ -85,7 +101,8 @@ private struct FB2BookParser {
             author: delegate.author,
             format: .fb2,
             chapters: chapters,
-            sourceURL: url
+            sourceURL: url,
+            coverData: delegate.coverData
         )
     }
 }
@@ -102,6 +119,13 @@ private final class FB2XMLDelegate: NSObject, XMLParserDelegate {
     private static let textElements: Set<String> = ["p", "subtitle", "text-author", "v"]
     private var chapterTitle = ""
     private var chapterText = ""
+    private var coverID: String?
+    private var isInCoverBinary = false
+    private var coverBase64 = ""
+
+    var coverData: Data? {
+        coverBase64.isEmpty ? nil : Data(base64Encoded: coverBase64, options: .ignoreUnknownCharacters)
+    }
 
     private(set) var title: String
     private(set) var fullText = ""
@@ -125,6 +149,13 @@ private final class FB2XMLDelegate: NSObject, XMLParserDelegate {
         if elementName == "body", attributeDict["name"] == "notes" {
             isInNotesBody = true // footnotes are not chapters
         }
+        if elementName == "image", coverID == nil, path.contains("coverpage") {
+            // <coverpage><image l:href="#cover.jpg"/>: the picture itself is a <binary> at the end of the file.
+            coverID = attributeDict.first { $0.key.hasSuffix("href") }.map { String($0.value.drop { $0 == "#" }) }
+        }
+        if elementName == "binary" {
+            isInCoverBinary = coverID != nil && attributeDict["id"] == coverID
+        }
         if elementName == "section", isInBody {
             // Every section is its own chapter, so "Part → Chapter" books keep their chapters.
             appendChapter()
@@ -133,7 +164,9 @@ private final class FB2XMLDelegate: NSObject, XMLParserDelegate {
     }
 
     func parser(_ parser: XMLParser, foundCharacters string: String) {
-        if pathSuffix(["description", "title-info", "book-title"]) {
+        if path.last == "binary" {
+            if isInCoverBinary { coverBase64 += string }
+        } else if pathSuffix(["description", "title-info", "book-title"]) {
             titleBuffer += string
         } else if pathSuffix(["description", "title-info", "author", "first-name"]) {
             firstName += string
@@ -218,7 +251,7 @@ private struct EPUBBookParser {
         let package = try EPUBPackageParser.parse(data: opfData)
         let basePath = URL(fileURLWithPath: rootfilePath).deletingLastPathComponent().relativePath
 
-        var chapters: [Chapter] = []
+        var files: [(path: String, html: String, text: String)] = []
         for itemID in package.spineIDs {
             guard let href = package.manifest[itemID] else { continue }
             let chapterPath = normalizedEPUBPath(basePath: basePath, href: href)
@@ -228,11 +261,62 @@ private struct EPUBBookParser {
             }
             let text = TextCleaner.htmlToText(html)
             guard !text.isEmpty else { continue }
+            files.append((chapterPath, html, text))
+        }
+
+        // The book's own table of contents says where chapters start and what they are called.
+        // Files it does not mention continue the chapter before them, so a book cut into
+        // hundreds of small files still comes out as its real chapters.
+        let contents = tableOfContents(of: package, basePath: basePath, in: archive)
+        let usesContents = files.filter { contents[$0.path] != nil }.count >= 2
+
+        // Some books keep every footnote as its own tiny numbered file at the end, each listed
+        // in the contents ("1", "2", … "1467"). Those are notes, not chapters to read aloud.
+        // The tail is cut where it becomes at least nine tenths such files.
+        if usesContents {
+            let isNote = files.map { file in
+                guard let title = contents[file.path], !title.isEmpty else { return false }
+                return title.allSatisfy(\.isNumber) && file.text.count < 3000
+            }
+            var notesInTail = 0
+            var tailStart = files.count
+            for index in files.indices.reversed() {
+                if isNote[index] { notesInTail += 1 }
+                let tailLength = files.count - index
+                if isNote[index], tailLength >= 20, notesInTail * 10 >= tailLength * 9 {
+                    tailStart = index
+                }
+            }
+            files.removeSubrange(tailStart...)
+        }
+
+        var chapters: [Chapter] = []
+        var runningTitle = ""
+        var part = 1
+        for file in files {
+            let listedTitle = usesContents ? contents[file.path] : nil
+            let continues = usesContents && listedTitle == nil && !chapters.isEmpty
+            if continues, chapters[chapters.count - 1].text.count + file.text.count <= Self.longestChapter {
+                chapters[chapters.count - 1].text += " " + file.text
+                continue
+            }
+
+            let title: String
+            if continues {
+                part += 1
+                title = "\(runningTitle) · \(part)" // too long for one audio file: carry on in a new part
+            } else {
+                title = listedTitle
+                    ?? TextCleaner.firstHeading(in: file.html)
+                    ?? (usesContents ? "Beginning" : "Chapter \(chapters.count + 1)")
+                runningTitle = title
+                part = 1
+            }
             chapters.append(Chapter(
                 id: UUID(),
                 index: chapters.count + 1,
-                title: TextCleaner.firstHeading(in: html) ?? "Chapter \(chapters.count + 1)",
-                text: text,
+                title: title,
+                text: file.text,
                 status: .pending,
                 audioPath: nil,
                 timingPath: nil
@@ -246,8 +330,40 @@ private struct EPUBBookParser {
             author: package.author.isEmpty ? "Unknown author" : package.author,
             format: .epub,
             chapters: chapters,
-            sourceURL: url
+            sourceURL: url,
+            coverData: package.coverHref.flatMap {
+                try? data(named: normalizedEPUBPath(basePath: basePath, href: $0), in: archive)
+            }
         )
+    }
+
+    /// Roughly an hour and a half of speech: past this a chapter is cut into parts.
+    private static let longestChapter = 80_000
+
+    /// Chapter titles by file path, from the NCX (EPUB 2) or the nav document (EPUB 3).
+    private func tableOfContents(of package: EPUBPackage, basePath: String, in archive: Archive) -> [String: String] {
+        var titles: [String: String] = [:]
+        func add(_ entries: [(href: String, title: String)], listedIn contentsPath: String) {
+            let folder = (contentsPath as NSString).deletingLastPathComponent
+            for entry in entries where !entry.title.isEmpty {
+                let path = normalizedEPUBPath(basePath: folder, href: entry.href)
+                if titles[path] == nil { titles[path] = entry.title } // first entry names the file
+            }
+        }
+
+        if let href = package.ncxHref {
+            let path = normalizedEPUBPath(basePath: basePath, href: href)
+            if let data = try? data(named: path, in: archive) {
+                add(EPUBNCXParser.parse(data: data), listedIn: path)
+            }
+        }
+        if titles.isEmpty, let href = package.navHref {
+            let path = normalizedEPUBPath(basePath: basePath, href: href)
+            if let data = try? data(named: path, in: archive), let html = TextCleaner.decodeHTML(data) {
+                add(TextCleaner.links(in: html), listedIn: path)
+            }
+        }
+        return titles
     }
 
     private func data(named path: String, in archive: Archive) throws -> Data {
@@ -294,6 +410,43 @@ private struct EPUBPackage {
     var author: String
     var manifest: [String: String]
     var spineIDs: [String]
+    var coverHref: String?
+    var ncxHref: String?
+    var navHref: String?
+}
+
+/// EPUB 2 table of contents: <navPoint><navLabel><text>Title</text></navLabel><content src="ch1.xhtml"/>.
+private final class EPUBNCXParser: NSObject, XMLParserDelegate {
+    private var path: [String] = []
+    private var label = ""
+    private var entries: [(href: String, title: String)] = []
+
+    static func parse(data: Data) -> [(href: String, title: String)] {
+        let delegate = EPUBNCXParser()
+        let parser = XMLParser(data: data)
+        parser.delegate = delegate
+        parser.parse()
+        return delegate.entries
+    }
+
+    func parser(_ parser: XMLParser, didStartElement elementName: String, namespaceURI: String?, qualifiedName qName: String?, attributes attributeDict: [String: String] = [:]) {
+        path.append(elementName)
+        if elementName == "navLabel" {
+            label = ""
+        } else if elementName == "content", path.contains("navPoint"), let src = attributeDict["src"] {
+            entries.append((src, TextCleaner.clean(label)))
+        }
+    }
+
+    func parser(_ parser: XMLParser, foundCharacters string: String) {
+        if path.last == "text", path.contains("navLabel"), path.contains("navPoint") {
+            label += string
+        }
+    }
+
+    func parser(_ parser: XMLParser, didEndElement elementName: String, namespaceURI: String?, qualifiedName qName: String?) {
+        _ = path.popLast()
+    }
 }
 
 private final class EPUBContainerParser: NSObject, XMLParserDelegate {
@@ -322,6 +475,16 @@ private final class EPUBPackageParser: NSObject, XMLParserDelegate {
     private var authorBuffer = ""
     private var manifest: [String: String] = [:]
     private var spineIDs: [String] = []
+    private var items: [(id: String, href: String, type: String, properties: String)] = []
+    private var coverID: String?
+    private var ncxID: String?
+
+    private var coverHref: String? {
+        func isImage(_ type: String) -> Bool { type.hasPrefix("image/") }
+        return items.first { $0.properties.contains("cover-image") }?.href
+            ?? coverID.flatMap { id in items.first { $0.id == id && isImage($0.type) }?.href }
+            ?? items.first { isImage($0.type) && ($0.id + $0.href).lowercased().contains("cover") }?.href
+    }
 
     static func parse(data: Data) throws -> EPUBPackage {
         let delegate = EPUBPackageParser()
@@ -334,7 +497,11 @@ private final class EPUBPackageParser: NSObject, XMLParserDelegate {
             title: TextCleaner.clean(delegate.titleBuffer),
             author: TextCleaner.clean(delegate.authorBuffer),
             manifest: delegate.manifest,
-            spineIDs: delegate.spineIDs
+            spineIDs: delegate.spineIDs,
+            coverHref: delegate.coverHref,
+            ncxHref: delegate.ncxID.flatMap { delegate.manifest[$0] }
+                ?? delegate.items.first { $0.type == "application/x-dtbncx+xml" }?.href,
+            navHref: delegate.items.first { $0.properties.split(separator: " ").contains("nav") }?.href
         )
     }
 
@@ -342,6 +509,11 @@ private final class EPUBPackageParser: NSObject, XMLParserDelegate {
         path.append(elementName)
         if elementName == "item", let id = attributeDict["id"], let href = attributeDict["href"] {
             manifest[id] = href
+            items.append((id, href, attributeDict["media-type"] ?? "", attributeDict["properties"] ?? ""))
+        } else if elementName == "meta", attributeDict["name"] == "cover" {
+            coverID = attributeDict["content"]
+        } else if elementName == "spine" {
+            ncxID = attributeDict["toc"]
         } else if elementName == "itemref", let idref = attributeDict["idref"], attributeDict["linear"] != "no" {
             spineIDs.append(idref)
         }
@@ -432,6 +604,21 @@ private enum TextCleaner {
         }
         let title = htmlToText(String(html[titleRange]))
         return title.isEmpty ? nil : title
+    }
+
+    /// Every <a href> with its visible text, in document order: an EPUB 3 nav document's entries.
+    static func links(in html: String) -> [(href: String, title: String)] {
+        guard let regex = try? NSRegularExpression(
+            pattern: #"<a\b[^>]*\bhref\s*=\s*["']([^"']+)["'][^>]*>([\s\S]*?)</a>"#,
+            options: [.caseInsensitive]
+        ) else { return [] }
+        let range = NSRange(html.startIndex..<html.endIndex, in: html)
+        return regex.matches(in: html, range: range).compactMap { match in
+            guard let href = Range(match.range(at: 1), in: html), let text = Range(match.range(at: 2), in: html) else {
+                return nil
+            }
+            return (String(html[href]), htmlToText(String(html[text])))
+        }
     }
 
     private static let namedEntities: [String: String] = [

@@ -63,7 +63,6 @@ struct SettingsView: View {
             }
         }
         .formStyle(.grouped)
-        .preferredColorScheme(.light)
     }
 
     // MARK: Voice choice

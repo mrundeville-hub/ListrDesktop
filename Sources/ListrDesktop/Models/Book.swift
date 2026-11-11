@@ -19,6 +19,9 @@ struct Book: Identifiable, Hashable, Sendable, Codable {
     var addedAt: Date
     var sourcePath: String? = nil
     var chapters: [Chapter] = []
+    /// The book's own cover image, copied out of the file at import. Nil: a generated cover is drawn.
+    var coverPath: String? = nil
+    var lastPlayedAt: Date? = nil
 
     var durationLabel: String {
         let hours = Int(duration) / 3600

@@ -14,7 +14,7 @@ struct PlaybackOverlayView: View {
             player
         }
         .frame(minWidth: 320, idealWidth: 400, maxWidth: 520, minHeight: 400, idealHeight: 640)
-        .background(Color(listrHex: 0xFBFBFD), in: RoundedRectangle(cornerRadius: 26, style: .continuous))
+        .background(ListrTheme.card, in: RoundedRectangle(cornerRadius: 26, style: .continuous))
         .shadow(color: .black.opacity(0.18), radius: 28, y: 14)
         .padding(24) // room for the soft shadow inside the transparent panel
         .listrWindowStyle()

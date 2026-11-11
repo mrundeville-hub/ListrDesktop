@@ -1,13 +1,39 @@
 import SwiftUI
 
-// "Air" look: near-white canvas with a faint colored glow, monochrome controls, system type.
-// Color comes from the book covers, not from the chrome.
+// "Air" look: a quiet canvas with a faint colored glow, monochrome controls, system type.
+// Color comes from the book covers, not from the chrome. Every token has a dark twin and
+// follows the system appearance.
 enum ListrTheme {
-    static let paper = Color(listrHex: 0xF5F5F7)
-    static let ink = Color(listrHex: 0x1D1D1F)
-    static let mutedLabel = Color(listrHex: 0x6E6E73)
-    static let fill = ink.opacity(0.06)                // resting control / row fill
-    static let highlight = Color(listrHex: 0xC9B8FF)   // spoken-word wash
+    static let paper = Color(light: 0xF5F5F7, dark: 0x161618)
+    static let ink = Color(light: 0x1D1D1F, dark: 0xF5F5F7)
+    static let mutedLabel = Color(light: 0x6E6E73, dark: 0x98989D)
+    static let fill = ink.opacity(0.06)                          // resting control / row fill
+    static let highlight = Color(light: 0xC9B8FF, dark: 0x5B4B9E) // spoken-word wash
+    static let card = Color(light: 0xFBFBFD, dark: 0x232326)      // opaque floating surface
+    /// Translucent panel over the backdrop: `strength` is how much of it shows in light mode.
+    static func surface(_ strength: Double) -> Color {
+        Color(nsColor: NSColor(name: nil) { appearance in
+            appearance.isDark ? NSColor.white.withAlphaComponent(strength * 0.12) : NSColor.white.withAlphaComponent(strength)
+        })
+    }
+}
+
+private extension NSAppearance {
+    var isDark: Bool { bestMatch(from: [.darkAqua, .aqua]) == .darkAqua }
+}
+
+extension Color {
+    init(light: UInt32, dark: UInt32) {
+        self.init(nsColor: NSColor(name: nil) { appearance in
+            let hex = appearance.isDark ? dark : light
+            return NSColor(
+                srgbRed: CGFloat((hex >> 16) & 0xFF) / 255,
+                green: CGFloat((hex >> 8) & 0xFF) / 255,
+                blue: CGFloat(hex & 0xFF) / 255,
+                alpha: 1
+            )
+        })
+    }
 }
 
 extension Color {
@@ -24,7 +50,6 @@ extension View {
     /// Window-level setup shared by the main window, the floating player and Settings.
     func listrWindowStyle() -> some View {
         tint(ListrTheme.ink)
-            .preferredColorScheme(.light) // palette is light-only
     }
 }
 
@@ -51,17 +76,36 @@ struct ListrBackdrop: View {
     }
 }
 
-// Generated cover: an iridescent blur whose hues are fixed by the book title.
+// A book's cover: its own picture when the file had one, else an iridescent blur whose hues
+// are fixed by the book title.
 struct ListrCover: View {
     let seed: String
+    var imagePath: String? = nil
     var cornerRadius: CGFloat = 20
 
     var body: some View {
+        Group {
+            if let image = CoverImages.image(at: imagePath) {
+                // Fills whatever frame the caller gives, cropping the overflow.
+                Color.clear.overlay {
+                    Image(nsImage: image)
+                        .resizable()
+                        .scaledToFill()
+                }
+            } else {
+                generated
+            }
+        }
+        .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
+        .accessibilityHidden(true)
+    }
+
+    private var generated: some View {
         // Stable across launches (String.hashValue is reseeded per process).
         let hash = seed.unicodeScalars.reduce(7) { ($0 &* 31 &+ Int($1.value)) % 3600 }
         let hue = Double(hash % 360) / 360
 
-        GeometryReader { geo in
+        return GeometryReader { geo in
             let side = max(geo.size.width, geo.size.height)
             ZStack {
                 Circle()
@@ -81,8 +125,31 @@ struct ListrCover: View {
             .frame(width: geo.size.width, height: geo.size.height)
             .background(Color(hue: hue, saturation: 0.10, brightness: 0.97)) // unblurred, so the edge stays crisp
         }
-        .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
-        .accessibilityHidden(true)
+    }
+}
+
+/// Cover files decoded once, at thumbnail size: a library can hold hundreds of them.
+@MainActor
+private enum CoverImages {
+    private static let cache = NSCache<NSString, NSImage>()
+
+    static func image(at path: String?) -> NSImage? {
+        guard let path else { return nil }
+        if let cached = cache.object(forKey: path as NSString) { return cached }
+
+        let options: [CFString: Any] = [
+            kCGImageSourceCreateThumbnailFromImageAlways: true,
+            kCGImageSourceCreateThumbnailWithTransform: true,
+            kCGImageSourceThumbnailMaxPixelSize: 640
+        ]
+        guard
+            let source = CGImageSourceCreateWithURL(URL(fileURLWithPath: path) as CFURL, nil),
+            let thumbnail = CGImageSourceCreateThumbnailAtIndex(source, 0, options as CFDictionary)
+        else { return nil }
+
+        let image = NSImage(cgImage: thumbnail, size: .zero)
+        cache.setObject(image, forKey: path as NSString)
+        return image
     }
 }
 
@@ -164,7 +231,7 @@ private struct ListrButtonBody<S: Shape, Content: View>: View {
 
     var body: some View {
         content(configuration.label)
-            .foregroundStyle(kind == .prominent ? Color.white : ListrTheme.ink)
+            .foregroundStyle(kind == .prominent ? ListrTheme.paper : ListrTheme.ink)
             .background(background, in: shape)
             .contentShape(shape)
             .scaleEffect(configuration.isPressed ? 0.94 : 1)

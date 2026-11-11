@@ -2,6 +2,7 @@ import SwiftUI
 
 // Home screen: every book as a cover. Click to open, "+" or drop a file to add.
 struct LibraryView: View {
+    @Environment(ConversionStore.self) private var conversionStore
     @Environment(LibraryStore.self) private var libraryStore
     @Environment(PlaybackStore.self) private var playbackStore
 
@@ -12,6 +13,7 @@ struct LibraryView: View {
     @State private var query = ""
     @AppStorage("library.sort") private var sort = Sort.recent
     @FocusState private var isSearchFocused: Bool
+    @State private var isConfirmingConvertAll = false
 
     var body: some View {
         VStack(spacing: 0) {
@@ -46,16 +48,27 @@ struct LibraryView: View {
                         .padding(.top, 24)
                         .padding(.bottom, 8)
 
+                    shelfStatus
+                        .padding(.horizontal, 44)
+                        .padding(.top, 12)
+
                     LazyVGrid(
                         columns: [GridItem(.adaptive(minimum: 150, maximum: 190), spacing: 32, alignment: .top)],
                         alignment: .leading,
                         spacing: 36
                     ) {
                         ForEach(visibleBooks) { book in
-                            BookCell(book: book, isPlaying: isPlaying(book)) {
+                            BookCell(
+                                book: book,
+                                isPlaying: isPlaying(book),
+                                isQueued: libraryStore.conversionQueue.contains(book.id)
+                            ) {
                                 onOpen(book)
                             }
                             .contextMenu {
+                                Button("Convert to Audio") { convert([book]) }
+                                    .disabled(!libraryStore.canConvert(book))
+                                Divider()
                                 Button("Remove from Library…", role: .destructive) { onRemove(book) }
                             }
                         }
@@ -75,14 +88,85 @@ struct LibraryView: View {
                 .scrollIndicators(.hidden)
             }
 
-            if let playingBook {
-                PlayerBar(book: playingBook) { onOpen(playingBook) }
+            if let playerBook {
+                PlayerBar(book: playerBook) { onOpen(playerBook) }
                     .padding(.horizontal, 20)
                     .padding(.bottom, 16)
                     .transition(.move(edge: .bottom).combined(with: .opacity))
             }
         }
-        .animation(.smooth(duration: 0.3), value: playingBook?.id)
+        .animation(.smooth(duration: 0.3), value: playerBook?.id)
+        .confirmationDialog(
+            "Convert \(convertibleBooks.count) books to audio?",
+            isPresented: $isConfirmingConvertAll,
+            titleVisibility: .visible
+        ) {
+            Button("Convert") { convert(convertibleBooks) }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("They are converted one after another with the voice chosen in Settings. You can listen to finished chapters meanwhile, and stop at any time.")
+        }
+    }
+
+    // MARK: Conversion queue
+
+    private var convertibleBooks: [Book] {
+        visibleBooks.filter(libraryStore.canConvert)
+    }
+
+    private func convert(_ books: [Book]) {
+        libraryStore.convert(bookIDs: books.map(\.id), configuration: conversionStore.activeConfiguration)
+    }
+
+    // One line between the summary and the shelf: how many books, and the conversion queue.
+    private var shelfStatus: some View {
+        HStack(spacing: 10) {
+            Text(visibleBooks.count == 1 ? "1 book" : "\(visibleBooks.count) books")
+                .font(.system(size: 12))
+                .monospacedDigit()
+                .foregroundStyle(ListrTheme.mutedLabel)
+
+            Spacer()
+
+            if let converting = libraryStore.books.first(where: { $0.id == libraryStore.convertingBookID }) {
+                HStack(spacing: 8) {
+                    ProgressView(value: converting.progress)
+                        .progressViewStyle(.circular)
+                        .controlSize(.small)
+                    Text(queueLabel(converting))
+                        .font(.system(size: 12, weight: .medium))
+                        .monospacedDigit()
+                        .foregroundStyle(ListrTheme.ink)
+                        .lineLimit(1)
+                    Button {
+                        libraryStore.cancelConversion()
+                    } label: {
+                        Image(systemName: "xmark")
+                    }
+                    .buttonStyle(ListrIconButtonStyle(size: 22, kind: .filled))
+                    .help("Stop converting and clear the queue. Finished chapters are kept.")
+                }
+                .padding(.leading, 10)
+                .padding(.trailing, 4)
+                .frame(height: 30)
+                .background(ListrTheme.fill, in: Capsule())
+            }
+
+            if !convertibleBooks.isEmpty {
+                Button(convertibleBooks.count == 1 ? "Convert 1 book" : "Convert \(convertibleBooks.count) books") {
+                    if convertibleBooks.count == 1 { convert(convertibleBooks) } else { isConfirmingConvertAll = true }
+                }
+                .buttonStyle(ListrCapsuleButtonStyle())
+                .help("Add every book shown here to the conversion queue")
+            }
+        }
+        .frame(height: 30)
+    }
+
+    private func queueLabel(_ converting: Book) -> String {
+        let waiting = libraryStore.conversionQueue.count
+        let title = converting.title.count > 28 ? converting.title.prefix(27) + "…" : converting.title
+        return "Converting “\(title)”" + (waiting > 0 ? ", \(waiting) waiting" : "")
     }
 
     // MARK: Search and sort
@@ -160,8 +244,16 @@ struct LibraryView: View {
         .help("Sort books")
     }
 
-    private var playingBook: Book? {
-        libraryStore.books.first { $0.id == playbackStore.currentBookID }
+    /// The book in the player bar: what is loaded, else the one listened to last, so
+    /// carrying on is one click from the library.
+    private var playerBook: Book? {
+        if let loaded = libraryStore.books.first(where: { $0.id == playbackStore.currentBookID }) {
+            return loaded
+        }
+        return libraryStore.books
+            .filter { $0.lastPlayedAt != nil || $0.chapters.contains { ($0.resumePosition ?? 0) > 0 } }
+            .sorted { ($0.lastPlayedAt ?? .distantPast) > ($1.lastPlayedAt ?? .distantPast) }
+            .first { $0.resumeChapter != nil }
     }
 
     private func isPlaying(_ book: Book) -> Bool {
@@ -206,6 +298,7 @@ struct LibraryView: View {
 private struct BookCell: View {
     let book: Book
     let isPlaying: Bool
+    let isQueued: Bool
     let open: () -> Void
 
     @State private var isHovered = false
@@ -213,7 +306,7 @@ private struct BookCell: View {
     var body: some View {
         Button(action: open) {
             VStack(alignment: .leading, spacing: 10) {
-                ListrCover(seed: book.title)
+                ListrCover(seed: book.title, imagePath: book.coverPath)
                     .aspectRatio(3 / 4, contentMode: .fit)
                     .overlay(alignment: .bottomLeading) { badge.padding(10) }
                     .shadow(color: .black.opacity(isHovered ? 0.16 : 0.08), radius: isHovered ? 18 : 10, y: isHovered ? 10 : 5)
@@ -247,7 +340,8 @@ private struct BookCell: View {
 
     // One quiet line: what you can do with this book right now.
     private var detail: String {
-        switch book.status {
+        if isQueued { return "Waiting to convert" }
+        return switch book.status {
         case .ready: book.duration > 0 ? book.durationLabel : ""
         case .converting: "Converting, \(Int(book.progress * 100))%"
         case .failed: "Needs attention"

@@ -15,6 +15,12 @@ struct PlayerBar: View {
         @Bindable var conversionStore = conversionStore
 
         HStack(spacing: 16) {
+            if onOpenBook != nil {
+                // On the library screen the bar may be offering a book that is not loaded yet.
+                ListrCover(seed: book.title, imagePath: book.coverPath, cornerRadius: 6)
+                    .frame(width: 30, height: 40)
+            }
+
             PlayerTransport(book: book)
 
             VStack(alignment: .leading, spacing: 3) {
@@ -44,7 +50,7 @@ struct PlayerBar: View {
         .padding(.leading, 14)
         .padding(.trailing, 16)
         .padding(.vertical, 10)
-        .background(.white.opacity(0.75), in: Capsule())
+        .background(ListrTheme.surface(0.75), in: Capsule())
         .shadow(color: .black.opacity(0.10), radius: 24, y: 10)
         .frame(maxWidth: 780)
     }

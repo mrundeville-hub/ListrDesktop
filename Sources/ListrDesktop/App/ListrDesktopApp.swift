@@ -12,7 +12,6 @@ struct ListrDesktopApp: App {
     var body: some Scene {
         WindowGroup("Listr", id: "main") {
             ContentView()
-                .preferredColorScheme(.light) // cloud palette is light-only
                 .environment(libraryStore)
                 .environment(conversionStore)
                 .environment(playbackStore)
