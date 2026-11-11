@@ -128,13 +128,15 @@ struct LibraryView: View {
         }
         .font(.system(size: 13))
         .padding(.horizontal, 10)
-        .frame(width: 190, height: 30)
+        .frame(width: 170, height: 30) // clears the centred title at the 720 pt minimum window width
         .background(ListrTheme.fill, in: Capsule())
         .background {
             // ⌘F jumps to the search field.
             Button("Search") { isSearchFocused = true }
                 .keyboardShortcut("f")
-                .hidden()
+                .opacity(0) // not .hidden(): a hidden button does not receive its shortcut
+                .allowsHitTesting(false)
+                .accessibilityHidden(true)
         }
     }
 
