@@ -29,6 +29,7 @@ struct PlaybackOverlayView: View {
                 .foregroundStyle(ListrTheme.ink)
                 .lineLimit(1)
                 .padding(.horizontal, 64)
+                .allowsHitTesting(false)
 
             HStack {
                 Button {
@@ -47,6 +48,7 @@ struct PlaybackOverlayView: View {
         .padding(.horizontal, 14)
         .padding(.top, 14)
         .padding(.bottom, 6)
+        .background(WindowDragHandle()) // grab the header to move the player
     }
 
     private var reader: some View {
@@ -101,5 +103,17 @@ struct PlaybackOverlayView: View {
             return value
         }
         return playbackStore.highlightedSnippet(fontSize: 19, before: 280, after: 460)
+    }
+}
+
+// Dragging this moves the window. SwiftUI content does not count as "window background"
+// to AppKit, so isMovableByWindowBackground alone leaves the card stuck in place.
+private struct WindowDragHandle: NSViewRepresentable {
+    func makeNSView(context: Context) -> NSView { HandleView() }
+    func updateNSView(_ nsView: NSView, context: Context) {}
+
+    private final class HandleView: NSView {
+        override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
+        override func mouseDown(with event: NSEvent) { window?.performDrag(with: event) }
     }
 }

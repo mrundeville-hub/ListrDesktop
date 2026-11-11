@@ -49,8 +49,11 @@ final class OverlayWindowController: NSObject, NSWindowDelegate {
         panel.titlebarAppearsTransparent = true
         panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .stationary]
         panel.minSize = NSSize(width: 368, height: 448)
+        // Comes back where it was left; centred only the first time.
+        if !panel.setFrameUsingName("ListrReadingOverlay") {
+            panel.center()
+        }
         panel.setFrameAutosaveName("ListrReadingOverlay")
-        panel.center()
         panel.standardWindowButton(.closeButton)?.isHidden = true // card has its own close
         panel.standardWindowButton(.miniaturizeButton)?.isHidden = true
         panel.standardWindowButton(.zoomButton)?.isHidden = true
