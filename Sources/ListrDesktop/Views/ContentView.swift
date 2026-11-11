@@ -117,6 +117,10 @@ struct ContentView: View {
         .task {
             await libraryStore.loadPersistedLibraryIfNeeded()
         }
+        // Convert / regenerate act on the selected book: keep it the one on screen, also after a relaunch.
+        .onChange(of: openBook?.id, initial: true) { _, id in
+            if let id { libraryStore.selectedBookID = id }
+        }
     }
 
     private func open(_ book: Book) {

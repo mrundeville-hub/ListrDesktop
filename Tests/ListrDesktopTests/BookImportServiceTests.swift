@@ -78,6 +78,24 @@ extension BookImportServiceTests {
         #expect(book.chapters.map(\.index) == [1, 2])
     }
 
+    @Test("FB2 without sections still imports its text")
+    func importsSectionlessFB2() throws {
+        let directory = try TemporaryDirectory()
+        let url = directory.url.appending(path: "flat.fb2")
+        try """
+        <?xml version="1.0" encoding="utf-8"?>
+        <FictionBook><description><title-info><book-title>Flat</book-title></title-info></description>
+        <body><p>First paragraph.</p><p>Second paragraph.</p></body></FictionBook>
+        """.write(to: url, atomically: true, encoding: .utf8)
+
+        let book = try BookImportService().importBook(from: url)
+
+        let text = book.chapters.map(\.text).joined(separator: "\n")
+        #expect(text.contains("First paragraph."))
+        #expect(text.contains("Second paragraph."))
+        #expect(!text.contains("paragraph.Second"))
+    }
+
     @Test("TXT in Windows-1251 imports as Russian text, not garbage")
     func importsCP1251Text() throws {
         let directory = try TemporaryDirectory()

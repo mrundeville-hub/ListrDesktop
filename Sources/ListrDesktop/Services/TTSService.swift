@@ -1,5 +1,6 @@
 import AVFoundation
 import Foundation
+import os
 
 enum TTSError: LocalizedError {
     case unsupportedEngine(VoiceEngine)
@@ -298,7 +299,9 @@ private final class SpeechSynthesisCoordinator: NSObject, AVSpeechSynthesizerDel
     private let voiceIdentifier: String?
     private var synthesizer: AVSpeechSynthesizer?
     private var audioFile: AVAudioFile?
-    private var markers: [(location: Int, length: Int, byteOffset: Int)] = []
+    // Filled straight from the synthesizer's thread, so every marker delivered before the
+    // final buffer is already here when finish() runs.
+    private let markers = OSAllocatedUnfairLock(initialState: [(location: Int, length: Int, byteOffset: Int)]())
     private var bytesPerSecond: Double = 0
     private var framesWritten: Double = 0
     private var sampleRate: Double = 0
@@ -321,19 +324,18 @@ private final class SpeechSynthesisCoordinator: NSObject, AVSpeechSynthesizerDel
             let utterance = AVSpeechUtterance(string: text)
             utterance.voice = Self.voice(for: text, preferredIdentifier: voiceIdentifier)
             utterance.rate = AVSpeechUtteranceDefaultSpeechRate
+            let markers = markers
             synthesizer.write(utterance, toBufferCallback: { [weak self] buffer in
                 guard let self else { return }
                 Task { @MainActor in
                     self.handle(buffer)
                 }
-            }, toMarkerCallback: { [weak self] newMarkers in
+            }, toMarkerCallback: { newMarkers in
                 // The voice says exactly where each word starts in the audio it is writing.
                 let words = newMarkers.filter { $0.mark == .word }.map {
                     (location: $0.textRange.location, length: $0.textRange.length, byteOffset: Int($0.byteSampleOffset))
                 }
-                Task { @MainActor in
-                    self?.markers.append(contentsOf: words)
-                }
+                markers.withLock { $0.append(contentsOf: words) }
             })
         }
     }
@@ -403,8 +405,8 @@ private final class SpeechSynthesisCoordinator: NSObject, AVSpeechSynthesizerDel
     }
 
     private func writeWordSegments() {
-        guard bytesPerSecond > 0, sampleRate > 0, !markers.isEmpty else { return }
-        let sorted = markers.sorted { $0.byteOffset < $1.byteOffset }
+        let sorted = markers.withLock { $0 }.sorted { $0.byteOffset < $1.byteOffset }
+        guard bytesPerSecond > 0, sampleRate > 0, !sorted.isEmpty else { return }
         let segments = sorted.enumerated().map { index, marker in
             TimingSegment(
                 location: marker.location,

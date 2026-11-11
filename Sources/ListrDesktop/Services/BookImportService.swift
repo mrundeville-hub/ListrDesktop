@@ -143,9 +143,10 @@ private final class FB2XMLDelegate: NSObject, XMLParserDelegate {
             lastName += string
         } else if sectionDepth > 0, path.contains("title") {
             chapterTitle += string
-        } else if sectionDepth > 0, shouldCollectBodyText {
-            chapterText += string
+        } else if shouldCollectBodyText {
+            // Text outside any <section> only feeds the fallback split for section-less books.
             fullText += string
+            if sectionDepth > 0 { chapterText += string }
         }
     }
 
@@ -155,13 +156,13 @@ private final class FB2XMLDelegate: NSObject, XMLParserDelegate {
             if !cleanedTitle.isEmpty { title = cleanedTitle }
         }
 
-        if sectionDepth > 0, Self.textElements.contains(elementName) {
+        if isInBody, Self.textElements.contains(elementName) {
             // Paragraphs carry no whitespace of their own; without this they fuse together.
-            if path.contains("title") {
+            if sectionDepth > 0, path.contains("title") {
                 chapterTitle += " "
             } else {
-                chapterText += "\n"
                 fullText += "\n"
+                if sectionDepth > 0 { chapterText += "\n" }
             }
         }
 
