@@ -1,6 +1,6 @@
 import SwiftUI
 
-// Home screen: every book as a cover. Click to open, "+" or drop a file to add.
+// Home screen: every book as a cover, in a grid or in Cover Flow. Click to open, "+" or drop a file to add.
 struct LibraryView: View {
     @Environment(ConversionStore.self) private var conversionStore
     @Environment(LibraryStore.self) private var libraryStore
@@ -12,99 +12,122 @@ struct LibraryView: View {
 
     @State private var query = ""
     @AppStorage("library.sort") private var sort = Sort.recent
+    @AppStorage("library.layout") private var layout = Layout.grid
     @FocusState private var isSearchFocused: Bool
     @State private var isConfirmingConvertAll = false
 
+    private enum Layout: String {
+        case grid, coverFlow
+    }
+
     var body: some View {
-        VStack(spacing: 0) {
-            ListrTopBar(title: "Library") {
-                EmptyView()
-            } trailing: {
-                if !libraryStore.books.isEmpty {
-                    searchField
-                    sortMenu
-                }
+        content
+            .navigationTitle("Library")
+            .navigationSubtitle(libraryStore.books.isEmpty ? "" : visibleBooks.count == 1 ? "1 book" : "\(visibleBooks.count) books")
+            .searchable(text: $query, placement: .toolbar, prompt: "Title or author")
+            .searchFocused($isSearchFocused)
+            .background {
+                // ⌘F jumps to the search field.
+                Button("Search") { isSearchFocused = true }
+                    .keyboardShortcut("f")
+                    .opacity(0) // not .hidden(): a hidden button does not receive its shortcut
+                    .allowsHitTesting(false)
+                    .accessibilityHidden(true)
+            }
+            .toolbar { toolbar }
+            .confirmationDialog(
+                "Convert \(convertibleBooks.count) books to audio?",
+                isPresented: $isConfirmingConvertAll,
+                titleVisibility: .visible
+            ) {
+                Button("Convert") { convert(convertibleBooks) }
+                Button("Cancel", role: .cancel) {}
+            } message: {
+                Text("They are converted one after another with the voice chosen in Settings. You can listen to finished chapters meanwhile, and stop at any time.")
+            }
+    }
 
-                SettingsLink {
-                    Image(systemName: "gearshape")
-                }
-                .buttonStyle(ListrIconButtonStyle())
-                .help("Voice settings")
+    @ViewBuilder private var content: some View {
+        if libraryStore.books.isEmpty {
+            emptyState
+        } else if visibleBooks.isEmpty {
+            ContentUnavailableView.search(text: query)
+        } else if layout == .coverFlow {
+            CoverFlowView(books: visibleBooks, onOpen: onOpen)
+        } else {
+            grid
+        }
+    }
 
-                Button(action: onImport) {
-                    Image(systemName: "plus")
+    @ToolbarContentBuilder private var toolbar: some ToolbarContent {
+        if !libraryStore.books.isEmpty {
+            ToolbarItem {
+                Picker("View", selection: $layout) {
+                    Label("Grid", systemImage: "square.grid.2x2").tag(Layout.grid)
+                    Label("Cover Flow", systemImage: "rectangle.stack").tag(Layout.coverFlow)
                 }
-                .buttonStyle(ListrIconButtonStyle(kind: .filled))
-                .disabled(libraryStore.isImporting)
-                .help("Add a book")
+                .pickerStyle(.segmented)
+                .help("Show the books as a grid or in Cover Flow")
             }
 
-            if libraryStore.books.isEmpty {
-                emptyState
-            } else {
-                ScrollView {
-                    ListeningSummary()
-                        .padding(.horizontal, 44)
-                        .padding(.top, 24)
-                        .padding(.bottom, 8)
-
-                    shelfStatus
-                        .padding(.horizontal, 44)
-                        .padding(.top, 12)
-
-                    LazyVGrid(
-                        columns: [GridItem(.adaptive(minimum: 150, maximum: 190), spacing: 32, alignment: .top)],
-                        alignment: .leading,
-                        spacing: 36
-                    ) {
-                        ForEach(visibleBooks) { book in
-                            BookCell(
-                                book: book,
-                                isPlaying: isPlaying(book),
-                                isQueued: libraryStore.conversionQueue.contains(book.id)
-                            ) {
-                                onOpen(book)
-                            }
-                            .contextMenu {
-                                Button("Convert to Audio") { convert([book]) }
-                                    .disabled(!libraryStore.canConvert(book))
-                                Divider()
-                                Button("Remove from Library…", role: .destructive) { onRemove(book) }
-                            }
-                        }
+            ToolbarItem {
+                Menu {
+                    Picker("Sort By", selection: $sort) {
+                        ForEach(Sort.allCases, id: \.self) { Text($0.rawValue).tag($0) }
                     }
-                    .padding(.horizontal, 44)
-                    .padding(.top, 20)
-                    .padding(.bottom, 32)
-                    .animation(.smooth(duration: 0.25), value: visibleBooks.map(\.id))
-
-                    if visibleBooks.isEmpty {
-                        Text("No books match “\(query)”")
-                            .font(.system(size: 14))
-                            .foregroundStyle(ListrTheme.mutedLabel)
-                            .padding(.top, 40)
-                    }
+                    .pickerStyle(.inline)
+                } label: {
+                    Label("Sort", systemImage: "arrow.up.arrow.down")
                 }
-                .scrollIndicators(.hidden)
-            }
-
-            if let playerBook {
-                PlayerBar(book: playerBook) { onOpen(playerBook) }
-                    .padding(.horizontal, 20)
-                    .padding(.bottom, 16)
-                    .transition(.move(edge: .bottom).combined(with: .opacity))
+                .help("Sort books")
             }
         }
-        .animation(.smooth(duration: 0.3), value: playerBook?.id)
-        .confirmationDialog(
-            "Convert \(convertibleBooks.count) books to audio?",
-            isPresented: $isConfirmingConvertAll,
-            titleVisibility: .visible
-        ) {
-            Button("Convert") { convert(convertibleBooks) }
-            Button("Cancel", role: .cancel) {}
-        } message: {
-            Text("They are converted one after another with the voice chosen in Settings. You can listen to finished chapters meanwhile, and stop at any time.")
+
+        ToolbarItem(placement: .primaryAction) {
+            Button(action: onImport) {
+                Label("Add Book", systemImage: "plus")
+            }
+            .disabled(libraryStore.isImporting)
+            .help("Add a book")
+        }
+    }
+
+    private var grid: some View {
+        ScrollView {
+            ListeningSummary()
+                .padding(.horizontal, 28)
+                .padding(.top, 20)
+                .padding(.bottom, 8)
+
+            shelfStatus
+                .padding(.horizontal, 28)
+                .padding(.top, 8)
+
+            LazyVGrid(
+                columns: [GridItem(.adaptive(minimum: 140, maximum: 180), spacing: 28, alignment: .top)],
+                alignment: .leading,
+                spacing: 32
+            ) {
+                ForEach(visibleBooks) { book in
+                    BookCell(
+                        book: book,
+                        isPlaying: isPlaying(book),
+                        isQueued: libraryStore.conversionQueue.contains(book.id)
+                    ) {
+                        onOpen(book)
+                    }
+                    .contextMenu {
+                        Button("Convert to Audio") { convert([book]) }
+                            .disabled(!libraryStore.canConvert(book))
+                        Divider()
+                        Button("Remove from Library…", role: .destructive) { onRemove(book) }
+                    }
+                }
+            }
+            .padding(.horizontal, 28)
+            .padding(.top, 16)
+            .padding(.bottom, 28)
+            .animation(.smooth(duration: 0.25), value: visibleBooks.map(\.id))
         }
     }
 
@@ -121,11 +144,6 @@ struct LibraryView: View {
     // One line between the summary and the shelf: how many books, and the conversion queue.
     private var shelfStatus: some View {
         HStack(spacing: 10) {
-            Text(visibleBooks.count == 1 ? "1 book" : "\(visibleBooks.count) books")
-                .font(.system(size: 12))
-                .monospacedDigit()
-                .foregroundStyle(ListrTheme.mutedLabel)
-
             Spacer()
 
             if let converting = libraryStore.books.first(where: { $0.id == libraryStore.convertingBookID }) {
@@ -141,26 +159,23 @@ struct LibraryView: View {
                     Button {
                         libraryStore.cancelConversion()
                     } label: {
-                        Image(systemName: "xmark")
+                        Image(systemName: "xmark.circle.fill")
                     }
-                    .buttonStyle(ListrIconButtonStyle(size: 22, kind: .filled))
+                    .buttonStyle(.borderless)
+                    .foregroundStyle(.secondary)
                     .help("Stop converting and clear the queue. Finished chapters are kept.")
                 }
-                .padding(.leading, 10)
-                .padding(.trailing, 4)
-                .frame(height: 30)
-                .background(ListrTheme.fill, in: Capsule())
             }
 
             if !convertibleBooks.isEmpty {
                 Button(convertibleBooks.count == 1 ? "Convert 1 book" : "Convert \(convertibleBooks.count) books") {
                     if convertibleBooks.count == 1 { convert(convertibleBooks) } else { isConfirmingConvertAll = true }
                 }
-                .buttonStyle(ListrCapsuleButtonStyle())
+                .buttonStyle(.bordered)
                 .help("Add every book shown here to the conversion queue")
             }
         }
-        .frame(height: 30)
+        .frame(minHeight: 24)
     }
 
     private func queueLabel(_ converting: Book) -> String {
@@ -190,108 +205,21 @@ struct LibraryView: View {
         }
     }
 
-    private var searchField: some View {
-        HStack(spacing: 6) {
-            Image(systemName: "magnifyingglass")
-                .foregroundStyle(ListrTheme.mutedLabel)
-            TextField("Search", text: $query)
-                .textFieldStyle(.plain)
-                .focused($isSearchFocused)
-                .onExitCommand {
-                    query = ""
-                    isSearchFocused = false
-                }
-            if !query.isEmpty {
-                Button { query = "" } label: {
-                    Image(systemName: "xmark.circle.fill")
-                        .foregroundStyle(ListrTheme.mutedLabel)
-                }
-                .buttonStyle(.plain)
-                .help("Clear search")
-            }
-        }
-        .font(.system(size: 13))
-        .padding(.horizontal, 10)
-        .frame(width: 170, height: 30) // clears the centred title at the 720 pt minimum window width
-        .background(ListrTheme.fill, in: Capsule())
-        .background {
-            // ⌘F jumps to the search field.
-            Button("Search") { isSearchFocused = true }
-                .keyboardShortcut("f")
-                .opacity(0) // not .hidden(): a hidden button does not receive its shortcut
-                .allowsHitTesting(false)
-                .accessibilityHidden(true)
-        }
-    }
-
-    private var sortMenu: some View {
-        Menu {
-            Picker("Sort by", selection: $sort) {
-                ForEach(Sort.allCases, id: \.self) { Text($0.rawValue).tag($0) }
-            }
-            .pickerStyle(.inline)
-        } label: {
-            Image(systemName: "arrow.up.arrow.down")
-                .font(.system(size: 13, weight: .medium))
-                .foregroundStyle(ListrTheme.ink)
-                .frame(width: 32, height: 32)
-                .contentShape(Circle())
-        }
-        .menuStyle(.button)
-        .buttonStyle(.plain)
-        .menuIndicator(.hidden)
-        .fixedSize()
-        .help("Sort books")
-    }
-
-    /// The book in the player bar: what is loaded, else the one listened to last, so
-    /// carrying on is one click from the library.
-    private var playerBook: Book? {
-        if let loaded = libraryStore.books.first(where: { $0.id == playbackStore.currentBookID }) {
-            return loaded
-        }
-        return libraryStore.books
-            .filter { $0.lastPlayedAt != nil || $0.chapters.contains { ($0.resumePosition ?? 0) > 0 } }
-            .sorted { ($0.lastPlayedAt ?? .distantPast) > ($1.lastPlayedAt ?? .distantPast) }
-            .first { $0.resumeChapter != nil }
-    }
-
     private func isPlaying(_ book: Book) -> Bool {
         playbackStore.currentBookID == book.id && playbackStore.isPlaying
     }
 
-    // An empty shelf: dots where the covers will be.
     private var emptyState: some View {
-        VStack(spacing: 28) {
-            VStack(spacing: 34) {
-                ForEach(0..<3, id: \.self) { _ in
-                    HStack(spacing: 46) {
-                        ForEach(0..<5, id: \.self) { _ in
-                            Circle()
-                                .fill(ListrTheme.ink.opacity(0.18))
-                                .frame(width: 6, height: 6)
-                        }
-                    }
-                }
-            }
-            .accessibilityHidden(true)
-
-            VStack(spacing: 8) {
-                Text("No books yet")
-                    .font(.system(size: 22, weight: .semibold))
-                    .foregroundStyle(ListrTheme.ink)
-                Text("Drop an FB2, EPUB or TXT file here and Listr turns it into an audiobook.")
-                    .font(.system(size: 14))
-                    .foregroundStyle(ListrTheme.mutedLabel)
-                    .multilineTextAlignment(.center)
-                    .frame(maxWidth: 340)
-            }
-
-            Button("Add a book", action: onImport)
-                .buttonStyle(ListrCapsuleButtonStyle(prominent: true, large: true))
+        ContentUnavailableView {
+            Label("No Books Yet", systemImage: "books.vertical")
+        } description: {
+            Text("Drop an FB2, EPUB or TXT file here and Listr turns it into an audiobook.")
+        } actions: {
+            Button("Add a Book…", action: onImport)
+                .buttonStyle(.borderedProminent)
+                .controlSize(.large)
                 .disabled(libraryStore.isImporting)
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 }
 
@@ -352,8 +280,7 @@ private struct BookCell: View {
 
     @ViewBuilder private var badge: some View {
         if isPlaying {
-            badgeIcon("waveform")
-                .symbolEffect(.variableColor.iterative, isActive: true)
+            badgeIcon("speaker.wave.2.fill") // still: a looping symbol effect redraws every frame
         } else if book.status == .failed {
             badgeIcon("exclamationmark")
         } else if book.status == .converting {

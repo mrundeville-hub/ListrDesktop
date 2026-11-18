@@ -25,6 +25,7 @@ final class LibraryStore {
     @ObservationIgnored private var keepAwake: NSObjectProtocol?
     @ObservationIgnored private var conversionGeneration = 0
     @ObservationIgnored private var saveTask: Task<Void, Never>?
+    @ObservationIgnored private var needsSave = false
 
     init(
         books: [Book] = [],
@@ -300,7 +301,8 @@ final class LibraryStore {
         saveLibrary()
     }
 
-    func updatePlaybackPosition(bookID: Book.ID, chapterID: Chapter.ID, position: TimeInterval) {
+    /// `force` writes it now (pause, quit); otherwise only every 30 s of playback.
+    func updatePlaybackPosition(bookID: Book.ID, chapterID: Chapter.ID, position: TimeInterval, force: Bool = false) {
         guard
             let bookIndex = books.firstIndex(where: { $0.id == bookID }),
             let chapterIndex = books[bookIndex].chapters.firstIndex(where: { $0.id == chapterID })
@@ -308,10 +310,11 @@ final class LibraryStore {
             return
         }
 
-        // ponytail: persisted every 5 s of playback, not every tick — the library file holds
-        // every chapter's text, so a quit mid-chapter can lose up to 5 s of position.
+        // ponytail: the library file holds every chapter's text (~100 MB for a big library), so
+        // writing it is costly: every 30 s of playback, plus on pause and quit. Moving the texts
+        // out of library.json would make position saves cheap enough to do every few seconds.
         let previous = books[bookIndex].chapters[chapterIndex].resumePosition ?? 0
-        guard position <= 0 || abs(position - previous) >= 5 else { return }
+        guard force || position <= 0 || abs(position - previous) >= 30 else { return }
         books[bookIndex].chapters[chapterIndex].resumePosition = max(position, 0)
         books[bookIndex].lastPlayedAt = .now
         saveLibrary()
@@ -605,12 +608,23 @@ final class LibraryStore {
 
     private func saveLibrary() {
         guard let persistence else { return }
+        // One write at a time, and changes made meanwhile go out together in the next one,
+        // so a burst of changes costs two writes, not one per change.
+        guard saveTask == nil else { needsSave = true; return }
         let snapshot = PersistedLibrary(books: books, selectedBookID: selectedBookID)
-        // Chained so an older snapshot can never land on disk after a newer one.
-        saveTask = Task.detached(priority: .utility) { [previous = saveTask] in
-            await previous?.value
-            try? persistence.save(snapshot)
+        saveTask = Task {
+            await Task.detached(priority: .utility) { try? persistence.save(snapshot) }.value
+            saveTask = nil
+            if needsSave {
+                needsSave = false
+                saveLibrary()
+            }
         }
+    }
+
+    /// Writes the library right away, for when the app is about to quit.
+    func saveNow() {
+        try? persistence?.save(PersistedLibrary(books: books, selectedBookID: selectedBookID))
     }
 
     @MainActor static let preview = LibraryStore(

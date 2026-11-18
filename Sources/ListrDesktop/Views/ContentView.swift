@@ -1,6 +1,7 @@
 import SwiftUI
 
-// Two screens in one window: the library grid, and one open book. The player bar is shared.
+// One window, Mac-style: the sidebar (library and the books in progress), the library or one
+// open book in the detail column, and the player floating over the bottom of it.
 struct ContentView: View {
     @Environment(LibraryStore.self) private var libraryStore
     @Environment(PlaybackStore.self) private var playbackStore
@@ -19,24 +20,26 @@ struct ContentView: View {
     }
 
     var body: some View {
-        ZStack {
-            ListrBackdrop()
-
-            if let book = openBook {
-                BookView(book: book, onBack: { openBookID = nil }, onRemove: { bookPendingRemoval = book })
-                    .transition(.scale(scale: 0.98).combined(with: .opacity))
-            } else {
-                LibraryView(
-                    onOpen: open,
-                    onImport: { isImporterPresented = true },
-                    onRemove: { bookPendingRemoval = $0 }
-                )
-                .transition(.opacity)
+        NavigationSplitView {
+            LibrarySidebar(selection: sidebarSelection, onRemove: { bookPendingRemoval = $0 })
+                .navigationSplitViewColumnWidth(min: 190, ideal: 230, max: 320)
+        } detail: {
+            Group {
+                if let book = openBook {
+                    BookView(book: book, onBack: { openBookID = nil }, onRemove: { bookPendingRemoval = book })
+                } else {
+                    LibraryView(
+                        onOpen: open,
+                        onImport: { isImporterPresented = true },
+                        onRemove: { bookPendingRemoval = $0 }
+                    )
+                    .listrPlayerBar(playerBook) { if let playerBook { open(playerBook) } }
+                    .animation(.smooth(duration: 0.3), value: playerBook?.id)
+                }
             }
+            .animation(.smooth(duration: 0.25), value: openBookIDString)
         }
-        .ignoresSafeArea(edges: .top) // top bars sit level with the traffic lights
-        .animation(.smooth(duration: 0.3), value: openBookIDString)
-        .listrWindowStyle()
+        .background(PlaybackPositionSaver())
         .dropDestination(for: URL.self) { urls, _ in
             let books = urls.filter { BookFormat.detect(from: $0) != nil }
             guard !books.isEmpty else { return false }
@@ -54,13 +57,6 @@ struct ContentView: View {
             case .failure(let error):
                 libraryStore.importError = error.localizedDescription
             }
-        }
-        // Saved here, not in the book screen, so the position survives leaving the book.
-        .onChange(of: playbackStore.elapsed) { _, elapsed in
-            guard let bookID = playbackStore.currentBookID, let chapterID = playbackStore.currentChapterID else {
-                return
-            }
-            libraryStore.updatePlaybackPosition(bookID: bookID, chapterID: chapterID, position: elapsed)
         }
         .confirmationDialog(
             "Remove “\(bookPendingRemoval?.title ?? "")” from the library?",
@@ -116,11 +112,40 @@ struct ContentView: View {
         }
         .task {
             await libraryStore.loadPersistedLibraryIfNeeded()
+            if ProcessInfo.processInfo.environment["LISTR_DEBUG_AUTOPLAY"] != nil, let book = libraryStore.books.first(where: { $0.title.contains("Minima") }), let chapter = book.resumeChapter {
+                openBookID = book.id
+                playbackStore.play(bookID: book.id, chapter: chapter, speed: 1)
+                try? await Task.sleep(for: .seconds(4))
+                playbackStore.togglePlayPause()
+                if ProcessInfo.processInfo.environment["LISTR_DEBUG_AUTOPLAY"] == "seek" {
+                }
+            }
         }
         // Convert / regenerate act on the selected book: keep it the one on screen, also after a relaunch.
         .onChange(of: openBook?.id, initial: true) { _, id in
             if let id { libraryStore.selectedBookID = id }
         }
+    }
+
+    private var sidebarSelection: Binding<SidebarItem?> {
+        Binding(
+            get: { openBookID.map(SidebarItem.book) ?? .library },
+            set: { item in
+                if case .book(let id)? = item {
+                    libraryStore.selectedBookID = id
+                    openBookID = id
+                } else {
+                    openBookID = nil
+                }
+            }
+        )
+    }
+
+    /// The book in the player bar on the library screen: what is loaded, else the one
+    /// listened to last, so carrying on is one click away.
+    private var playerBook: Book? {
+        libraryStore.books.first { $0.id == playbackStore.currentBookID }
+            ?? libraryStore.startedBooks.first { $0.resumeChapter != nil }
     }
 
     private func open(_ book: Book) {
@@ -151,5 +176,28 @@ struct ContentView: View {
                 libraryStore.importError = failures.joined(separator: "\n")
             }
         }
+    }
+}
+
+// Saves the listening position as it moves. A view of its own so the 10 Hz playback clock
+// re-renders only this, not the whole window. Lives above the book screen so the position
+// is kept after leaving the book.
+private struct PlaybackPositionSaver: View {
+    @Environment(LibraryStore.self) private var libraryStore
+    @Environment(PlaybackStore.self) private var playbackStore
+
+    var body: some View {
+        Color.clear
+            .onChange(of: playbackStore.elapsed) { save() }
+            .onChange(of: playbackStore.isPlaying) { save(force: true) } // paused: keep the exact spot
+            .onReceive(NotificationCenter.default.publisher(for: NSApplication.willTerminateNotification)) { _ in
+                save(force: true)
+                libraryStore.saveNow()
+            }
+    }
+
+    private func save(force: Bool = false) {
+        guard let bookID = playbackStore.currentBookID, let chapterID = playbackStore.currentChapterID else { return }
+        libraryStore.updatePlaybackPosition(bookID: bookID, chapterID: chapterID, position: playbackStore.elapsed, force: force)
     }
 }

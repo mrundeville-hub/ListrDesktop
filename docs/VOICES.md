@@ -74,7 +74,7 @@ Non-commercial license. Latin-script words (English names, titles) are skipped, 
 
 ```bash
 uv venv --python 3.12 .tools/silero-venv
-uv pip install -p .tools/silero-venv silero scipy
+uv pip install -p .tools/silero-venv silero scipy num2words  # num2words: Silero reads no digits, so numbers are spelled out
 ```
 
 Once that folder exists, the Silero voices appear in Settings → **Voice**. They run [`script/silero_tts.py`](../script/silero_tts.py):

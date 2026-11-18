@@ -4,7 +4,7 @@ set -euo pipefail
 MODE="${1:-run}"
 APP_NAME="ListrDesktop"
 BUNDLE_ID="dev.listr.desktop"
-MIN_SYSTEM_VERSION="14.0"
+MIN_SYSTEM_VERSION="15.0"
 APP_VERSION="1.0.0"
 BUILD_NUMBER="1"
 

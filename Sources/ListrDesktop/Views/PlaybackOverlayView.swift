@@ -14,10 +14,9 @@ struct PlaybackOverlayView: View {
             player
         }
         .frame(minWidth: 320, idealWidth: 400, maxWidth: 520, minHeight: 400, idealHeight: 640)
-        .background(ListrTheme.card, in: RoundedRectangle(cornerRadius: 26, style: .continuous))
+        .background(ListrTheme.paper, in: RoundedRectangle(cornerRadius: 26, style: .continuous))
         .shadow(color: .black.opacity(0.18), radius: 28, y: 14)
         .padding(24) // room for the soft shadow inside the transparent panel
-        .listrWindowStyle()
     }
 
     private var header: some View {
@@ -28,7 +27,7 @@ struct PlaybackOverlayView: View {
                 .font(.system(size: 13, weight: .semibold))
                 .foregroundStyle(ListrTheme.ink)
                 .lineLimit(1)
-                .padding(.horizontal, 64)
+                .padding(.horizontal, 96)
                 .allowsHitTesting(false)
 
             HStack {
@@ -42,6 +41,7 @@ struct PlaybackOverlayView: View {
 
                 Spacer()
 
+                ListrSleepMenu()
                 ListrSpeedMenu(speed: $conversionStore.speed) { playbackStore.applySpeed($0) }
             }
         }
@@ -51,29 +51,21 @@ struct PlaybackOverlayView: View {
         .background(WindowDragHandle()) // grab the header to move the player
     }
 
-    private var reader: some View {
-        ScrollView {
-            Text(readingText)
-                .lineSpacing(8)
-                .textSelection(.enabled)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.horizontal, 24)
-                .padding(.vertical, 14)
+    @ViewBuilder private var reader: some View {
+        if playbackStore.currentText.isEmpty {
+            Text("Close this window, open a book and press play. The text follows the voice here.")
+                .font(.system(size: 15))
+                .foregroundStyle(ListrTheme.mutedLabel)
+                .padding(.horizontal, 28)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        } else {
+            PagedReader(fontSize: 18, margin: 28)
         }
-        .scrollIndicators(.hidden)
-        .frame(maxHeight: .infinity)
     }
 
     private var player: some View {
         VStack(spacing: 10) {
-            HStack(spacing: 8) {
-                time(playbackStore.elapsed)
-                ListrScrubber(progress: playbackStore.progress) { progress in
-                    playbackStore.seek(to: progress)
-                }
-                .disabled(!playbackStore.hasLoadedChapter)
-                time(playbackStore.duration)
-            }
+            PlayerProgress(isLoaded: playbackStore.hasLoadedChapter)
 
             if let currentBook {
                 PlayerTransport(book: currentBook, playSize: 44)
@@ -84,25 +76,9 @@ struct PlaybackOverlayView: View {
         .padding(.bottom, 18)
     }
 
-    private func time(_ value: TimeInterval) -> some View {
-        Text(value.listrTimecode)
-            .font(.system(size: 11))
-            .monospacedDigit()
-            .foregroundStyle(ListrTheme.mutedLabel)
-    }
 
     private var currentBook: Book? {
         libraryStore.books.first { $0.id == playbackStore.currentBookID }
-    }
-
-    private var readingText: AttributedString {
-        guard !playbackStore.currentText.isEmpty else {
-            var value = AttributedString("Close this window, open a book and press play. The text follows the voice here.")
-            value.foregroundColor = ListrTheme.mutedLabel
-            value.font = .system(size: 15)
-            return value
-        }
-        return playbackStore.highlightedSnippet(fontSize: 19, before: 280, after: 460)
     }
 }
 

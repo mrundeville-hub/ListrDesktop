@@ -17,18 +17,19 @@ struct ListrDesktopApp: App {
                 .environment(playbackStore)
                 .environment(overlayStore)
                 .environment(statsStore)
-                .frame(minWidth: 720, minHeight: 520)
+                .frame(minWidth: 760, minHeight: 520)
                 .onAppear {
-                    // Keep the window user-resizable; hiddenTitleBar + tiling can drop the bit.
-                    DispatchQueue.main.async {
-                        for window in NSApplication.shared.windows where window.isVisible {
-                            window.styleMask.insert(.resizable)
-                            window.minSize = NSSize(width: 720, height: 520)
-                        }
-                    }
                     playbackStore.onListened = { statsStore.add($0) }
                     playbackStore.onChapterFinished = { bookID, chapterID in
                         autoAdvance(bookID: bookID, finishedChapterID: chapterID)
+                    }
+                    playbackStore.onSkipChapter = { direction in
+                        guard
+                            let chapterID = playbackStore.currentChapterID,
+                            let book = libraryStore.books.first(where: { $0.id == playbackStore.currentBookID }),
+                            let chapter = direction > 0 ? book.chapter(after: chapterID) : book.chapter(before: chapterID)
+                        else { return }
+                        playbackStore.play(bookID: book.id, chapter: chapter, speed: conversionStore.speed)
                     }
                     if overlayStore.isPresented {
                         presentOverlay()
@@ -42,10 +43,13 @@ struct ListrDesktopApp: App {
                     }
                 }
         }
-        .windowStyle(.hiddenTitleBar)
         .windowResizability(.contentMinSize)
         .defaultSize(width: 1320, height: 880)
         .defaultPosition(.center)
+        .commands {
+            SidebarCommands()
+            InspectorCommands()
+        }
         Settings {
             SettingsView()
                 .environment(conversionStore)

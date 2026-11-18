@@ -1,79 +1,13 @@
 import SwiftUI
 
-// "Air" look: a quiet canvas with a faint colored glow, monochrome controls, system type.
-// Color comes from the book covers, not from the chrome. Every token has a dark twin and
-// follows the system appearance.
+// Native macOS look: system colors and the user's accent color, so light/dark mode, Increase
+// Contrast and accent changes all follow System Settings. Color comes from the book covers.
 enum ListrTheme {
-    static let paper = Color(light: 0xF5F5F7, dark: 0x161618)
-    static let ink = Color(light: 0x1D1D1F, dark: 0xF5F5F7)
-    static let mutedLabel = Color(light: 0x6E6E73, dark: 0x98989D)
-    static let fill = ink.opacity(0.06)                          // resting control / row fill
-    static let highlight = Color(light: 0xC9B8FF, dark: 0x5B4B9E) // spoken-word wash
-    static let card = Color(light: 0xFBFBFD, dark: 0x232326)      // opaque floating surface
-    /// Translucent panel over the backdrop: `strength` is how much of it shows in light mode.
-    static func surface(_ strength: Double) -> Color {
-        Color(nsColor: NSColor(name: nil) { appearance in
-            appearance.isDark ? NSColor.white.withAlphaComponent(strength * 0.12) : NSColor.white.withAlphaComponent(strength)
-        })
-    }
-}
-
-private extension NSAppearance {
-    var isDark: Bool { bestMatch(from: [.darkAqua, .aqua]) == .darkAqua }
-}
-
-extension Color {
-    init(light: UInt32, dark: UInt32) {
-        self.init(nsColor: NSColor(name: nil) { appearance in
-            let hex = appearance.isDark ? dark : light
-            return NSColor(
-                srgbRed: CGFloat((hex >> 16) & 0xFF) / 255,
-                green: CGFloat((hex >> 8) & 0xFF) / 255,
-                blue: CGFloat(hex & 0xFF) / 255,
-                alpha: 1
-            )
-        })
-    }
-}
-
-extension Color {
-    init(listrHex hex: UInt32) {
-        self.init(
-            red: Double((hex >> 16) & 0xFF) / 255,
-            green: Double((hex >> 8) & 0xFF) / 255,
-            blue: Double(hex & 0xFF) / 255
-        )
-    }
-}
-
-extension View {
-    /// Window-level setup shared by the main window, the floating player and Settings.
-    func listrWindowStyle() -> some View {
-        tint(ListrTheme.ink)
-    }
-}
-
-// Window background: paper with three very soft blobs of color, like light through frosted glass.
-struct ListrBackdrop: View {
-    var body: some View {
-        GeometryReader { geo in
-            ZStack {
-                ListrTheme.paper
-                blob(0xFFB8DC, x: 0.18, y: 0.10, in: geo.size)
-                blob(0xC9B8FF, x: 0.85, y: 0.25, in: geo.size)
-                blob(0xFFDCC0, x: 0.55, y: 0.95, in: geo.size)
-            }
-        }
-        .ignoresSafeArea()
-    }
-
-    private func blob(_ hex: UInt32, x: CGFloat, y: CGFloat, in size: CGSize) -> some View {
-        Circle()
-            .fill(Color(listrHex: hex).opacity(0.28))
-            .frame(width: size.width * 0.5, height: size.width * 0.5)
-            .blur(radius: 110)
-            .position(x: size.width * x, y: size.height * y)
-    }
+    static let paper = Color(nsColor: .windowBackgroundColor)
+    static let ink = Color(nsColor: .labelColor)
+    static let mutedLabel = Color(nsColor: .secondaryLabelColor)
+    static let fill = Color(nsColor: .quaternaryLabelColor)       // resting control fill
+    static let highlight = Color.accentColor.opacity(0.35)        // spoken-word wash
 }
 
 // A book's cover: its own picture when the file had one, else an iridescent blur whose hues
@@ -81,7 +15,7 @@ struct ListrBackdrop: View {
 struct ListrCover: View {
     let seed: String
     var imagePath: String? = nil
-    var cornerRadius: CGFloat = 20
+    var cornerRadius: CGFloat = 6
 
     var body: some View {
         Group {
@@ -125,6 +59,7 @@ struct ListrCover: View {
             .frame(width: geo.size.width, height: geo.size.height)
             .background(Color(hue: hue, saturation: 0.10, brightness: 0.97)) // unblurred, so the edge stays crisp
         }
+        .drawingGroup() // three big blurs: flatten them once instead of per frame (grid hover, Cover Flow)
     }
 }
 
@@ -153,43 +88,10 @@ private enum CoverImages {
     }
 }
 
-// Title-bar row that sits level with the traffic lights: actions left and right, title centered.
-struct ListrTopBar<Leading: View, Trailing: View>: View {
-    let title: String
-    var subtitle: String? = nil
-    @ViewBuilder var leading: Leading
-    @ViewBuilder var trailing: Trailing
-
-    var body: some View {
-        ZStack {
-            VStack(spacing: 1) {
-                Text(title)
-                    .font(.system(size: 14, weight: .semibold))
-                    .foregroundStyle(ListrTheme.ink)
-                if let subtitle {
-                    Text(subtitle)
-                        .font(.system(size: 11))
-                        .foregroundStyle(ListrTheme.mutedLabel)
-                }
-            }
-            .lineLimit(1)
-            .padding(.horizontal, 230)
-
-            HStack(spacing: 8) {
-                leading
-                Spacer()
-                trailing
-            }
-        }
-        .padding(.leading, 84) // clears the traffic lights
-        .padding(.trailing, 16)
-        .frame(height: 36)
-    }
-}
-
-// Round icon button. Plain shows its circle on hover only; prominent is the one black button.
+// Round icon button for the player: a bare glyph, its circle shows on hover. Prominent is the
+// bigger play glyph.
 struct ListrIconButtonStyle: ButtonStyle {
-    enum Kind { case plain, filled, prominent }
+    enum Kind { case plain, prominent }
 
     var size: CGFloat = 32
     var kind: Kind = .plain
@@ -197,24 +99,8 @@ struct ListrIconButtonStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         ListrButtonBody(configuration: configuration, kind: kind, shape: Circle()) { label in
             label
-                .font(.system(size: size * 0.42, weight: .medium))
+                .font(.system(size: size * (kind == .prominent ? 0.55 : 0.42), weight: kind == .prominent ? .semibold : .medium))
                 .frame(width: size, height: size)
-        }
-    }
-}
-
-// Text button in a capsule.
-struct ListrCapsuleButtonStyle: ButtonStyle {
-    var prominent = false
-    var large = false
-
-    func makeBody(configuration: Configuration) -> some View {
-        ListrButtonBody(configuration: configuration, kind: prominent ? .prominent : .filled, shape: Capsule()) { label in
-            label
-                .font(.system(size: large ? 15 : 13, weight: .medium))
-                .lineLimit(1)
-                .padding(.horizontal, large ? 22 : 14)
-                .frame(height: large ? 40 : 30)
         }
     }
 }
@@ -231,7 +117,7 @@ private struct ListrButtonBody<S: Shape, Content: View>: View {
 
     var body: some View {
         content(configuration.label)
-            .foregroundStyle(kind == .prominent ? ListrTheme.paper : ListrTheme.ink)
+            .foregroundStyle(ListrTheme.ink)
             .background(background, in: shape)
             .contentShape(shape)
             .scaleEffect(configuration.isPressed ? 0.94 : 1)
@@ -243,8 +129,7 @@ private struct ListrButtonBody<S: Shape, Content: View>: View {
 
     private var background: Color {
         switch kind {
-        case .prominent: ListrTheme.ink.opacity(isHovered ? 0.82 : 1)
-        case .filled: ListrTheme.ink.opacity(isHovered ? 0.11 : 0.06)
+        case .prominent: ListrTheme.ink.opacity(isHovered ? 0.07 : 0)
         case .plain: ListrTheme.ink.opacity(isHovered ? 0.07 : 0)
         }
     }
@@ -324,38 +209,51 @@ struct ListrSpeedMenu: View {
     }
 }
 
-extension PlaybackStore {
-    /// The passage around the spoken word: what was read is solid, what is coming is faded,
-    /// and the word itself gets a soft wash (no weight change, so the text never reflows).
-    func highlightedSnippet(fontSize: CGFloat, before: Int, after: Int) -> AttributedString {
-        let source = currentText
-        let font = Font.system(size: fontSize)
-
-        guard
-            let word = currentWord,
-            let range = Range(NSRange(location: word.location, length: word.length), in: source)
-        else {
-            var preview = AttributedString(String(source.prefix(before + after)))
-            preview.foregroundColor = ListrTheme.ink.opacity(0.6)
-            preview.font = font
-            return preview
-        }
-
-        let start = source.index(range.lowerBound, offsetBy: -before, limitedBy: source.startIndex) ?? source.startIndex
-        let end = source.index(range.upperBound, offsetBy: after, limitedBy: source.endIndex) ?? source.endIndex
-
-        var read = AttributedString((start == source.startIndex ? "" : "…") + source[start..<range.lowerBound])
-        read.foregroundColor = ListrTheme.ink
-
-        var spoken = AttributedString(source[range])
-        spoken.foregroundColor = ListrTheme.ink
-        spoken.backgroundColor = ListrTheme.highlight.opacity(0.7)
-
-        var upcoming = AttributedString(source[range.upperBound..<end] + (end == source.endIndex ? "" : "…"))
-        upcoming.foregroundColor = ListrTheme.ink.opacity(0.38)
-
-        var snippet = read + spoken + upcoming
-        snippet.font = font
-        return snippet
+extension View {
+    /// Makes the word links of `highlightedPage` seek instead of opening a browser.
+    func listrSeeksOnWordClick(_ playbackStore: PlaybackStore) -> some View {
+        environment(\.openURL, OpenURLAction { url in
+            guard url.scheme == "listr-seek", let time = Double(url.absoluteString.dropFirst("listr-seek:".count)) else {
+                return .systemAction
+            }
+            playbackStore.seek(toTime: time)
+            return .handled
+        })
     }
+}
+
+// Sleep timer: stop after a while, or when the chapter ends.
+struct ListrSleepMenu: View {
+    @Environment(PlaybackStore.self) private var playbackStore
+
+    var body: some View {
+        Menu {
+            if case .at(let deadline) = playbackStore.sleepTimer {
+                Text("Stops at \(deadline.formatted(date: .omitted, time: .shortened))")
+            } else if playbackStore.sleepTimer == .endOfChapter {
+                Text("Stops when this chapter ends")
+            }
+            ForEach([15, 30, 45, 60], id: \.self) { minutes in
+                Button("In \(minutes) minutes") { playbackStore.sleep(afterMinutes: minutes) }
+            }
+            Button("At the end of the chapter") { playbackStore.sleepTimer = .endOfChapter }
+            if isOn {
+                Divider()
+                Button("Turn Off") { playbackStore.sleepTimer = .off }
+            }
+        } label: {
+            Image(systemName: isOn ? "moon.fill" : "moon")
+                .font(.system(size: 13, weight: .medium))
+                .foregroundStyle(ListrTheme.ink)
+                .frame(width: 32, height: 32)
+                .contentShape(Circle())
+        }
+        .menuStyle(.button)
+        .buttonStyle(.plain)
+        .menuIndicator(.hidden)
+        .fixedSize()
+        .help(isOn ? "Sleep timer is on" : "Sleep timer")
+    }
+
+    private var isOn: Bool { playbackStore.sleepTimer != .off }
 }

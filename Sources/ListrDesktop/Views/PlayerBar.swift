@@ -1,7 +1,7 @@
 import SwiftUI
 
 // The one player: transport, position, speed, and the switch to the floating window.
-// Shown under an open book, and under the library while something is loaded.
+// A glass capsule floating over the bottom of the library and of an open book.
 struct PlayerBar: View {
     @Environment(ConversionStore.self) private var conversionStore
     @Environment(OverlayStore.self) private var overlayStore
@@ -14,11 +14,11 @@ struct PlayerBar: View {
     var body: some View {
         @Bindable var conversionStore = conversionStore
 
-        HStack(spacing: 16) {
+        HStack(spacing: 14) {
             if onOpenBook != nil {
                 // On the library screen the bar may be offering a book that is not loaded yet.
-                ListrCover(seed: book.title, imagePath: book.coverPath, cornerRadius: 6)
-                    .frame(width: 30, height: 40)
+                ListrCover(seed: book.title, imagePath: book.coverPath, cornerRadius: 3)
+                    .frame(width: 27, height: 36)
             }
 
             PlayerTransport(book: book)
@@ -26,18 +26,13 @@ struct PlayerBar: View {
             VStack(alignment: .leading, spacing: 3) {
                 title
 
-                HStack(spacing: 8) {
-                    time(playbackStore.elapsed)
-                    ListrScrubber(progress: isLoaded ? playbackStore.progress : 0) { progress in
-                        playbackStore.seek(to: progress)
-                    }
-                    .disabled(!isLoaded)
-                    time(isLoaded ? playbackStore.duration : 0)
-                }
+                PlayerProgress(isLoaded: isLoaded)
             }
-            .frame(minWidth: 150)
+            .frame(minWidth: 80)
 
             ListrSpeedMenu(speed: $conversionStore.speed) { playbackStore.applySpeed($0) }
+
+            ListrSleepMenu()
 
             Button {
                 overlayStore.toggle()
@@ -47,12 +42,11 @@ struct PlayerBar: View {
             .buttonStyle(ListrIconButtonStyle())
             .help("Floating player: stays on top of other apps")
         }
-        .padding(.leading, 14)
-        .padding(.trailing, 16)
-        .padding(.vertical, 10)
-        .background(ListrTheme.surface(0.75), in: Capsule())
-        .shadow(color: .black.opacity(0.10), radius: 24, y: 10)
-        .frame(maxWidth: 780)
+        .padding(.leading, onOpenBook != nil ? 8 : 12)
+        .padding(.trailing, 14)
+        .padding(.vertical, 7)
+        .listrGlass(in: Capsule())
+        .frame(maxWidth: 760)
     }
 
     private var isLoaded: Bool {
@@ -75,6 +69,25 @@ struct PlayerBar: View {
                 .font(.system(size: 12, weight: .medium))
                 .foregroundStyle(ListrTheme.ink)
                 .lineLimit(1)
+        }
+    }
+
+}
+
+// Time and scrubber. Its own view so the 10 Hz clock redraws only this row, not the whole player.
+struct PlayerProgress: View {
+    @Environment(PlaybackStore.self) private var playbackStore
+
+    let isLoaded: Bool
+
+    var body: some View {
+        HStack(spacing: 8) {
+            time(isLoaded ? playbackStore.elapsed : 0)
+            ListrScrubber(progress: isLoaded ? playbackStore.progress : 0) { progress in
+                playbackStore.seek(to: progress)
+            }
+            .disabled(!isLoaded)
+            time(isLoaded ? playbackStore.duration : 0)
         }
     }
 
@@ -146,5 +159,32 @@ struct PlayerTransport: View {
         .buttonStyle(ListrIconButtonStyle())
         .disabled(!enabled)
         .help(help)
+    }
+}
+
+extension View {
+    /// Floats the player over the bottom edge; the screen's content runs on underneath it.
+    /// An overlay, not a safe-area inset: an inset's minimum width becomes the split view column's,
+    /// and next to the chapter inspector that sent AppKit into an endless constraint loop (crash).
+    func listrPlayerBar(_ book: Book?, onOpenBook: (() -> Void)? = nil) -> some View {
+        safeAreaPadding(.bottom, book == nil ? 0 : 76)
+            .overlay(alignment: .bottom) {
+                if let book {
+                    PlayerBar(book: book, onOpenBook: onOpenBook)
+                        .padding(.horizontal, 20)
+                        .padding(.bottom, 14)
+                        .transition(.move(edge: .bottom).combined(with: .opacity))
+                }
+            }
+    }
+
+    /// Liquid Glass on macOS 26 and later, frosted material before it.
+    @ViewBuilder func listrGlass(in shape: some Shape) -> some View {
+        if #available(macOS 26, *) {
+            glassEffect(.regular, in: shape)
+        } else {
+            background(.regularMaterial, in: shape)
+                .shadow(color: .black.opacity(0.15), radius: 18, y: 6)
+        }
     }
 }

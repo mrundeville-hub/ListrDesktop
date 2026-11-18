@@ -1,6 +1,6 @@
 import SwiftUI
 
-// One open book: the text being read in the middle, chapters on the right, player underneath.
+// One open book: the text being read in the middle, chapters in the inspector on the right.
 struct BookView: View {
     @Environment(ConversionStore.self) private var conversionStore
     @Environment(LibraryStore.self) private var libraryStore
@@ -14,86 +14,74 @@ struct BookView: View {
     @State private var isConfirmingRegenerate = false
 
     var body: some View {
-        VStack(spacing: 0) {
-            topBar
-
-            GeometryReader { geo in
-                HStack(spacing: 20) {
-                    reader
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-
-                    if showsChapters, ListrAdaptiveLayout.showsFindingsRail(forAvailableWidth: geo.size.width) {
-                        ChapterList(book: book)
-                            .frame(width: ListrAdaptiveLayout.findingsRailWidth)
-                            .transition(.move(edge: .trailing).combined(with: .opacity))
+        reader
+            // Explicit zero minimum: the hero's height grows as its text wraps, and a minimum
+            // size that depends on width sends the split view (with the inspector open) into an
+            // endless constraint loop that AppKit ends with a crash.
+            .frame(minWidth: 0, maxWidth: .infinity, minHeight: 0, maxHeight: .infinity)
+            .listrPlayerBar(book)
+            .animation(.smooth(duration: 0.3), value: isReading)
+            .navigationTitle(book.title)
+            .navigationSubtitle(book.author)
+            .toolbar { toolbar }
+            .inspector(isPresented: $showsChapters) {
+                ChapterList(book: book)
+                    .inspectorColumnWidth(min: 240, ideal: 290, max: 420)
+            }
+            .background { CoverBackdrop(book: book) }
+            .toolbarBackgroundVisibility(.hidden, for: .windowToolbar) // the cover colors run up under it
+            .onExitCommand(perform: onBack)
+            .confirmationDialog(
+                "Regenerate audio for “\(book.title)”?",
+                isPresented: $isConfirmingRegenerate,
+                titleVisibility: .visible
+            ) {
+                Button("Regenerate", role: .destructive) {
+                    if playbackStore.currentBookID == book.id {
+                        playbackStore.unload()
                     }
+                    libraryStore.regenerateSelectedBook(configuration: conversionStore.activeConfiguration)
                 }
+                Button("Cancel", role: .cancel) {}
+            } message: {
+                Text("The current audio is deleted and every chapter is converted again with the voice chosen in Settings.")
             }
-            .padding(.horizontal, 20)
-            .padding(.top, 10)
-
-            PlayerBar(book: book)
-                .padding(.horizontal, 20)
-                .padding(.vertical, 16)
-        }
-        .animation(.smooth(duration: 0.3), value: showsChapters)
-        .animation(.smooth(duration: 0.3), value: isReading)
-        .onExitCommand(perform: onBack)
-        .confirmationDialog(
-            "Regenerate audio for “\(book.title)”?",
-            isPresented: $isConfirmingRegenerate,
-            titleVisibility: .visible
-        ) {
-            Button("Regenerate", role: .destructive) {
-                if playbackStore.currentBookID == book.id {
-                    playbackStore.unload()
-                }
-                libraryStore.regenerateSelectedBook(configuration: conversionStore.activeConfiguration)
-            }
-            Button("Cancel", role: .cancel) {}
-        } message: {
-            Text("The current audio is deleted and every chapter is converted again with the voice chosen in Settings.")
-        }
     }
 
-    // MARK: Top bar
+    // MARK: Toolbar
 
-    private var topBar: some View {
-        ListrTopBar(title: book.title, subtitle: book.author) {
+    @ToolbarContentBuilder private var toolbar: some ToolbarContent {
+        ToolbarItem(placement: .navigation) {
             Button(action: onBack) {
-                Image(systemName: "chevron.left")
+                Label("Library", systemImage: "chevron.backward")
             }
-            .buttonStyle(ListrIconButtonStyle())
             .keyboardShortcut("[", modifiers: .command)
             .help("Back to the library")
-        } trailing: {
+        }
+
+        ToolbarItem {
             conversionControl
+        }
 
-            Button {
-                showsChapters.toggle()
-            } label: {
-                Image(systemName: "list.bullet")
-            }
-            .buttonStyle(ListrIconButtonStyle(kind: showsChapters ? .filled : .plain))
-            .help(showsChapters ? "Hide chapters" : "Show chapters")
-
+        ToolbarItem {
             Menu {
                 Button("Regenerate Audio…") { isConfirmingRegenerate = true }
                     .disabled(!libraryStore.canRegenerateSelectedBook)
                 Divider()
                 Button("Remove from Library…", role: .destructive, action: onRemove)
             } label: {
-                Image(systemName: "ellipsis")
-                    .font(.system(size: 13, weight: .medium))
-                    .foregroundStyle(ListrTheme.ink)
-                    .frame(width: 32, height: 32)
-                    .contentShape(Circle())
+                Label("More", systemImage: "ellipsis.circle")
             }
-            .menuStyle(.button)
-            .buttonStyle(.plain)
-            .menuIndicator(.hidden)
-            .fixedSize()
             .help("More")
+        }
+
+        ToolbarItem {
+            Button {
+                showsChapters.toggle()
+            } label: {
+                Label("Chapters", systemImage: "sidebar.right")
+            }
+            .help(showsChapters ? "Hide chapters" : "Show chapters")
         }
     }
 
@@ -113,27 +101,22 @@ struct BookView: View {
                 Button {
                     libraryStore.cancelConversion()
                 } label: {
-                    Image(systemName: "xmark")
+                    Image(systemName: "xmark.circle.fill")
                 }
-                .buttonStyle(ListrIconButtonStyle(size: 22, kind: .filled))
+                .buttonStyle(.borderless)
+                .foregroundStyle(.secondary)
                 .help("Stop converting. Finished chapters are kept.")
             }
-            .padding(.leading, 10)
-            .padding(.trailing, 4)
-            .frame(height: 30)
-            .background(ListrTheme.fill, in: Capsule())
+            .padding(.horizontal, 6)
             .animation(.snappy, value: readyCount)
         } else if libraryStore.conversionQueue.contains(book.id) {
             Text("Waiting to convert")
                 .font(.system(size: 12, weight: .medium))
                 .foregroundStyle(ListrTheme.mutedLabel)
-                .padding(.horizontal, 12)
-                .frame(height: 30)
-                .background(ListrTheme.fill, in: Capsule())
+                .padding(.horizontal, 6)
                 .help("Starts when the books ahead of it in the queue are done")
         } else if libraryStore.canConvertSelectedBook, book.resumeChapter != nil {
-            Button("Convert the rest", action: convert)
-                .buttonStyle(ListrCapsuleButtonStyle())
+            Button("Convert the Rest", action: convert)
                 .help("\(book.chapters.count - readyCount) chapters are not converted yet")
         }
     }
@@ -154,16 +137,8 @@ struct BookView: View {
 
     @ViewBuilder private var reader: some View {
         if isReading {
-            ScrollView {
-                Text(playbackStore.highlightedSnippet(fontSize: 22, before: 520, after: 900))
-                    .lineSpacing(10)
-                    .textSelection(.enabled)
-                    .frame(maxWidth: 640, alignment: .leading)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 28)
-            }
-            .scrollIndicators(.hidden)
-            .transition(.opacity)
+            PagedReader(fontSize: 21)
+                .transition(.opacity)
         } else {
             hero
                 .transition(.opacity)
@@ -173,9 +148,9 @@ struct BookView: View {
     // Before anything plays: the book itself and the single next step.
     private var hero: some View {
         VStack(spacing: 24) {
-            ListrCover(seed: book.title, imagePath: book.coverPath, cornerRadius: 24)
+            ListrCover(seed: book.title, imagePath: book.coverPath, cornerRadius: 8)
                 .frame(width: 168, height: 224)
-                .shadow(color: .black.opacity(0.12), radius: 24, y: 12)
+                .shadow(color: .black.opacity(0.25), radius: 28, y: 14)
 
             VStack(spacing: 4) {
                 Text(book.title)
@@ -201,7 +176,8 @@ struct BookView: View {
             } label: {
                 Label((chapter.resumePosition ?? 0) > 0 ? "Continue \(chapter.title)" : "Play", systemImage: "play.fill")
             }
-            .buttonStyle(ListrCapsuleButtonStyle(prominent: true, large: true))
+            .buttonStyle(.borderedProminent)
+            .controlSize(.large)
         } else if libraryStore.isConvertingSelectedBook {
             VStack(spacing: 10) {
                 ProgressView()
@@ -210,8 +186,9 @@ struct BookView: View {
             }
         } else if libraryStore.canConvertSelectedBook {
             VStack(spacing: 12) {
-                Button("Convert to audio", action: convert)
-                    .buttonStyle(ListrCapsuleButtonStyle(prominent: true, large: true))
+                Button("Convert to Audio", action: convert)
+                    .buttonStyle(.borderedProminent)
+                    .controlSize(.large)
                 if let error = book.chapters.compactMap(\.lastError).first {
                     Text(error)
                         .font(.system(size: 12))
@@ -237,36 +214,47 @@ struct BookView: View {
 }
 
 private struct ChapterList: View {
+    @Environment(ConversionStore.self) private var conversionStore
+    @Environment(PlaybackStore.self) private var playbackStore
+
     let book: Book
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            HStack {
-                Text("Chapters")
-                    .font(.system(size: 13, weight: .semibold))
-                    .foregroundStyle(ListrTheme.ink)
-                Spacer()
-                Text(summary)
-                    .font(.system(size: 12))
-                    .monospacedDigit()
-                    .foregroundStyle(ListrTheme.mutedLabel)
-            }
-            .padding(.horizontal, 18)
-            .padding(.top, 16)
-            .padding(.bottom, 8)
-
-            ScrollView {
-                LazyVStack(spacing: 1) {
-                    ForEach(book.chapters) { chapter in
-                        ChapterRow(book: book, chapter: chapter)
-                    }
+        List(selection: selection) {
+            Section {
+                ForEach(book.chapters) { chapter in
+                    ChapterRow(chapter: chapter, isActive: activeChapterID == chapter.id, isPlaying: playbackStore.isPlaying)
+                        .tag(chapter.id)
+                        .selectionDisabled(!chapter.isReady)
+                        .listRowSeparator(.hidden)
+                        .listRowBackground(Color.clear)
                 }
-                .padding(.horizontal, 8)
-                .padding(.bottom, 12)
+            } header: {
+                HStack {
+                    Text("Chapters")
+                    Spacer()
+                    Text(summary)
+                        .monospacedDigit()
+                }
             }
-            .scrollIndicators(.hidden)
         }
-        .background(ListrTheme.surface(0.55), in: RoundedRectangle(cornerRadius: 22, style: .continuous))
+        .listStyle(.plain)
+        .scrollContentBackground(.hidden) // the cover-colored backdrop shows through
+    }
+
+    private var activeChapterID: Chapter.ID? {
+        playbackStore.currentBookID == book.id ? playbackStore.currentChapterID : nil
+    }
+
+    // Selecting a chapter plays it; the playing one stays selected.
+    private var selection: Binding<Chapter.ID?> {
+        Binding(
+            get: { activeChapterID },
+            set: { id in
+                guard let id, id != activeChapterID, let chapter = book.chapters.first(where: { $0.id == id }) else { return }
+                playbackStore.play(bookID: book.id, chapter: chapter, speed: conversionStore.speed)
+            }
+        )
     }
 
     private var summary: String {
@@ -277,83 +265,67 @@ private struct ChapterList: View {
 }
 
 private struct ChapterRow: View {
-    @Environment(ConversionStore.self) private var conversionStore
-    @Environment(PlaybackStore.self) private var playbackStore
-
-    let book: Book
     let chapter: Chapter
-
-    @State private var isHovered = false
+    let isActive: Bool
+    let isPlaying: Bool
 
     var body: some View {
-        Button(action: play) {
-            HStack(spacing: 10) {
-                Group {
-                    if isActive {
-                        Image(systemName: "waveform")
-                            .symbolEffect(.variableColor.iterative, isActive: playbackStore.isPlaying)
-                            .foregroundStyle(ListrTheme.ink)
-                    } else {
-                        Text("\(chapter.index)")
-                            .monospacedDigit()
-                            .foregroundStyle(ListrTheme.mutedLabel)
-                    }
-                }
-                .font(.system(size: 12))
-                .frame(width: 24)
-
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(chapter.title)
-                        .font(.system(size: 13, weight: isActive ? .semibold : .regular))
-                        .foregroundStyle(ListrTheme.ink)
-                        .lineLimit(1)
-
-                    if let lastError = chapter.lastError {
-                        Text(lastError)
-                            .font(.system(size: 11))
-                            .foregroundStyle(.red)
-                            .lineLimit(2)
-                    }
-                }
-
-                Spacer(minLength: 6)
-
-                if chapter.status == .converting {
-                    ProgressView()
-                        .controlSize(.small)
-                } else if chapter.status == .failed {
-                    Image(systemName: "exclamationmark.circle")
-                        .font(.system(size: 12))
-                        .foregroundStyle(.red)
+        HStack(spacing: 8) {
+            Group {
+                if isActive {
+                    // ponytail: still, not animated: a looping symbol effect redraws the window every frame.
+                    Image(systemName: isPlaying ? "speaker.wave.2.fill" : "speaker.fill")
+                } else {
+                    Text("\(chapter.index)")
+                        .monospacedDigit()
+                        .foregroundStyle(.secondary)
                 }
             }
-            .padding(.horizontal, 10)
-            .padding(.vertical, 8)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(
-                ListrTheme.ink.opacity(isActive ? 0.07 : isHovered && isPlayable ? 0.04 : 0),
-                in: RoundedRectangle(cornerRadius: 10, style: .continuous)
-            )
-            .contentShape(Rectangle())
+            .font(.caption)
+            .frame(width: 22)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(chapter.title)
+                    .fontWeight(isActive ? .semibold : .regular)
+                    .lineLimit(1)
+
+                if let lastError = chapter.lastError {
+                    Text(lastError)
+                        .font(.caption)
+                        .foregroundStyle(.red)
+                        .lineLimit(2)
+                }
+            }
+
+            Spacer(minLength: 6)
+
+            if chapter.status == .converting {
+                ProgressView()
+                    .controlSize(.small)
+            } else if chapter.status == .failed {
+                Image(systemName: "exclamationmark.circle")
+                    .foregroundStyle(.red)
+            }
         }
-        .buttonStyle(.plain)
-        .disabled(!isPlayable)
-        .opacity(isPlayable || chapter.status != .pending ? 1 : 0.45)
-        .onHover { isHovered = $0 }
-        .help(chapter.lastError ?? (isPlayable ? "Play this chapter" : "Not converted yet"))
+        .padding(.vertical, 2)
+        .opacity(chapter.status == .pending ? 0.45 : 1)
+        .help(chapter.lastError ?? (chapter.isReady ? "Play this chapter" : "Not converted yet"))
     }
+}
 
-    private var isPlayable: Bool { chapter.isReady }
+// The book's own colors behind the whole screen, as Music does behind an album: the cover,
+// blown up and blurred until only its colors remain, under a veil that keeps text readable.
+private struct CoverBackdrop: View {
+    let book: Book
 
-    private var isActive: Bool {
-        playbackStore.currentBookID == book.id && playbackStore.currentChapterID == chapter.id
-    }
-
-    private func play() {
-        if isActive {
-            playbackStore.togglePlayPause()
-        } else {
-            playbackStore.play(bookID: book.id, chapter: chapter, speed: conversionStore.speed)
-        }
+    var body: some View {
+        ListrCover(seed: book.title, imagePath: book.coverPath, cornerRadius: 0)
+            .scaleEffect(1.3)
+            .blur(radius: 80, opaque: true)
+            .drawingGroup() // one static texture, not a live blur under the moving text
+            .overlay(Color(nsColor: .windowBackgroundColor).opacity(0.6))
+            .ignoresSafeArea() // under the toolbar and the glass sidebar too
+            .allowsHitTesting(false)
+            .accessibilityHidden(true)
     }
 }

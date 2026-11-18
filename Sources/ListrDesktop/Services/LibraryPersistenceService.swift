@@ -86,7 +86,7 @@ struct LibraryPersistenceService: Sendable {
 private extension JSONEncoder {
     static var listr: JSONEncoder {
         let encoder = JSONEncoder()
-        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+        // Compact: the file runs to ~100 MB, and pretty printing makes every save slower and bigger.
         encoder.dateEncodingStrategy = .iso8601
         return encoder
     }

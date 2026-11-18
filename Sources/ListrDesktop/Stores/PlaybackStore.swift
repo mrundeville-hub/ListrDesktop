@@ -1,5 +1,6 @@
 import AVFoundation
 import Foundation
+import MediaPlayer
 import Observation
 
 enum PlaybackError: LocalizedError {
@@ -27,11 +28,20 @@ final class PlaybackStore {
     var isPlaying = false
     var playbackError: String?
     var currentText = ""
+    var sleepTimer = SleepTimer.off
+
+    enum SleepTimer: Equatable {
+        case off
+        case at(Date)
+        case endOfChapter
+    }
 
     /// Called when a chapter plays to the end; wired by the app to auto-advance.
     @ObservationIgnored var onChapterFinished: ((Book.ID, Chapter.ID) -> Void)?
     /// Called while audio is playing with the real seconds that just passed; feeds the stats.
     @ObservationIgnored var onListened: ((TimeInterval) -> Void)?
+    /// Called by the keyboard / headphone "next" (+1) and "previous" (-1) keys.
+    @ObservationIgnored var onSkipChapter: ((Int) -> Void)?
     @ObservationIgnored private var lastTick = Date()
 
     @ObservationIgnored private var player: AVAudioPlayer?
@@ -39,8 +49,17 @@ final class PlaybackStore {
     @ObservationIgnored private var currentTiming: ChapterTiming?
     @ObservationIgnored private let playerDelegate = PlayerFinishDelegate()
 
+    init() {
+        connectMediaKeys()
+    }
+
     var hasLoadedChapter: Bool {
         currentChapterID != nil
+    }
+
+    /// The words of the loaded chapter that start inside `range` (UTF-16 offsets into its text).
+    func words(in range: NSRange) -> [ChapterWordTiming] {
+        currentTiming?.words.filter { $0.location >= range.location && $0.location < range.location + range.length } ?? []
     }
 
     var progress: Double {
@@ -91,6 +110,7 @@ final class PlaybackStore {
             isPlaying = true
             playbackError = nil
             startProgressUpdates()
+            publishNowPlaying()
         } catch {
             playbackError = PlaybackError.couldNotLoadAudio.localizedDescription
         }
@@ -102,6 +122,7 @@ final class PlaybackStore {
 
     func applySpeed(_ speed: Double) {
         player?.rate = Float(speed)
+        publishNowPlaying()
     }
 
     func togglePlayPause() {
@@ -114,12 +135,14 @@ final class PlaybackStore {
             isPlaying = true
             startProgressUpdates()
         }
+        publishNowPlaying()
     }
 
     func stop() {
         player?.pause()
         isPlaying = false
         stopProgressUpdates()
+        publishNowPlaying()
     }
 
     /// Drops the loaded chapter entirely — used when its audio is about to be deleted.
@@ -133,6 +156,8 @@ final class PlaybackStore {
         currentText = ""
         elapsed = 0
         duration = 0
+        sleepTimer = .off
+        publishNowPlaying()
     }
 
     func seek(to progress: Double) {
@@ -140,12 +165,68 @@ final class PlaybackStore {
         let clampedProgress = min(max(progress, 0), 1)
         player.currentTime = duration * clampedProgress
         elapsed = player.currentTime
+        publishNowPlaying()
+    }
+
+    func seek(toTime time: TimeInterval) {
+        guard duration > 0 else { return }
+        seek(to: time / duration)
     }
 
     func skip(seconds: TimeInterval) {
         guard let player else { return }
         player.currentTime = min(max(player.currentTime + seconds, 0), duration)
         elapsed = player.currentTime
+        publishNowPlaying()
+    }
+
+    func sleep(afterMinutes minutes: Int) {
+        sleepTimer = .at(Date().addingTimeInterval(Double(minutes) * 60))
+    }
+
+    // MARK: Media keys and Now Playing
+
+    /// Keyboard media keys, headphone buttons and Control Centre all arrive through here.
+    private func connectMediaKeys() {
+        let commands = MPRemoteCommandCenter.shared()
+        // MediaPlayer does not promise a thread for these, so each one hops to the main actor.
+        func on(_ command: MPRemoteCommand, _ action: @escaping @MainActor (PlaybackStore, TimeInterval) -> Void) {
+            command.addTarget { [weak self] event in
+                let position = (event as? MPChangePlaybackPositionCommandEvent)?.positionTime ?? 0
+                Task { @MainActor in
+                    guard let self, self.hasLoadedChapter else { return }
+                    action(self, position)
+                }
+                return .success
+            }
+        }
+
+        on(commands.playCommand) { store, _ in if !store.isPlaying { store.togglePlayPause() } }
+        on(commands.pauseCommand) { store, _ in if store.isPlaying { store.togglePlayPause() } }
+        on(commands.togglePlayPauseCommand) { store, _ in store.togglePlayPause() }
+        on(commands.nextTrackCommand) { store, _ in store.onSkipChapter?(1) }
+        on(commands.previousTrackCommand) { store, _ in store.onSkipChapter?(-1) }
+        commands.skipForwardCommand.preferredIntervals = [15]
+        on(commands.skipForwardCommand) { store, _ in store.skip(seconds: 15) }
+        commands.skipBackwardCommand.preferredIntervals = [15]
+        on(commands.skipBackwardCommand) { store, _ in store.skip(seconds: -15) }
+        on(commands.changePlaybackPositionCommand) { store, position in store.seek(toTime: position) }
+    }
+
+    private func publishNowPlaying() {
+        let center = MPNowPlayingInfoCenter.default()
+        guard hasLoadedChapter else {
+            center.nowPlayingInfo = nil
+            center.playbackState = .stopped
+            return
+        }
+        center.nowPlayingInfo = [
+            MPMediaItemPropertyTitle: currentTitle,
+            MPMediaItemPropertyPlaybackDuration: duration,
+            MPNowPlayingInfoPropertyElapsedPlaybackTime: elapsed,
+            MPNowPlayingInfoPropertyPlaybackRate: isPlaying ? Double(player?.rate ?? 1) : 0
+        ]
+        center.playbackState = isPlaying ? .playing : .paused // macOS routes the keys by this
     }
 
     private func startProgressUpdates() {
@@ -166,9 +247,15 @@ final class PlaybackStore {
                     }
                     self.lastTick = now
 
+                    if case .at(let deadline) = self.sleepTimer, now >= deadline {
+                        self.sleepTimer = .off
+                        if player.isPlaying { self.togglePlayPause() }
+                    }
+
+                    // Only real changes: every write wakes each view that reads the property.
                     self.elapsed = player.currentTime
-                    self.duration = player.duration
-                    self.isPlaying = player.isPlaying
+                    if self.duration != player.duration { self.duration = player.duration }
+                    if self.isPlaying != player.isPlaying { self.isPlaying = player.isPlaying }
 
                     if !player.isPlaying, self.duration > 0, self.elapsed >= self.duration {
                         self.elapsed = self.duration
@@ -188,6 +275,11 @@ final class PlaybackStore {
         elapsed = duration
         isPlaying = false
         stopProgressUpdates()
+        publishNowPlaying()
+        if sleepTimer == .endOfChapter {
+            sleepTimer = .off // stay here; pressing play later moves on to the next chapter
+            return
+        }
         guard let bookID = currentBookID, let chapterID = currentChapterID else { return }
         onChapterFinished?(bookID, chapterID)
     }
